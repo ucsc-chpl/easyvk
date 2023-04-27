@@ -10,6 +10,7 @@
 #include <android/log.h>
 #endif
 
+// TODO: extend this to include ios logging lib
 void evk_log(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -517,7 +518,7 @@ namespace easyvk {
 
 		// Bind push constants
 		uint32_t pValues[3] = {0, 0, 0};
-		vkCmdPushConstants(device.computeCommandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, easyvk::push_constant_size_bytes, &pValues);
+		vkCmdPushConstants(device.computeCommandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
 
         vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
                              1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
@@ -525,8 +526,8 @@ namespace easyvk {
 		// Dispatch compute work items
 		vkCmdDispatch(device.computeCommandBuffer, numWorkgroups, 1, 1);
 
-		//vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
-							//1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
+		vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+							1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
 
 		// End recording command buffer
 		vkCheck(vkEndCommandBuffer(device.computeCommandBuffer));
@@ -572,7 +573,7 @@ namespace easyvk {
 			1,
 			&descriptorSetLayout,
 			1,
-			new VkPushConstantRange {VK_SHADER_STAGE_COMPUTE_BIT, 0, easyvk::push_constant_size_bytes}
+			new VkPushConstantRange {VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes}
 		};
 
 		// Print out device's properties information
@@ -611,14 +612,14 @@ namespace easyvk {
 		vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), &writeDescriptorSets.front(), 0,{});
 	}
 
-	Program::Program(easyvk::Device &_device, std::vector<uint32_t> spvCode, std::vector<Buffer> &_buffers) : 
+	Program::Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<Buffer> &_buffers) : 
 		device(_device), 
 		shaderModule(initShaderModule(_device, spvCode)), 
 		buffers(_buffers) {
 		initialize();
 	}
 	
-	Program::Program(easyvk::Device &_device, const char* filepath, std::vector<easyvk::Buffer> &_buffers) :
+	Program::Program(Device &_device, const char* filepath, std::vector<Buffer> &_buffers) :
 		device(_device),
 		shaderModule(initShaderModule(_device, filepath)),
 		buffers(_buffers) {

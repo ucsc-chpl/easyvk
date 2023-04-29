@@ -121,7 +121,7 @@ namespace easyvk {
 		#ifdef __APPLE__
 		VkInstanceCreateFlags instanceCreateFlags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 		#else
-		VkInstanceCreateFlags instanceCreateFlags;
+		VkInstanceCreateFlags instanceCreateFlags = 0;
 		#endif
 
 		// Define instance create info

@@ -416,6 +416,7 @@ namespace easyvk {
 			spvCode.size() * sizeof(uint32_t),
 			spvCode.data()
 		}, nullptr, &shaderModule));
+
 		return shaderModule;
 	}
 	VkShaderModule initShaderModule(easyvk::Device& device, const char* filepath) {
@@ -494,8 +495,10 @@ namespace easyvk {
 			VkPipelineShaderStageCreateFlags {},
 			VK_SHADER_STAGE_COMPUTE_BIT,
 			shaderModule,
-			"lock_test",
+			"litmus_test", // TODO: Set entyr-point name in a way which isn't just hard-coded.
 			&specInfo};
+
+
 		// Define compute pipeline create info
 		VkComputePipelineCreateInfo pipelineCI{
 			VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -505,8 +508,10 @@ namespace easyvk {
 			pipelineLayout
 		};
 
+
 		// Create compute pipelines
 		vkCheck(vkCreateComputePipelines(device.device, {}, 1, &pipelineCI, nullptr,  &pipeline));
+		std::printf("Created compute pipeline!\n");
 
 		// Start recording command buffer
 		vkCheck(vkBeginCommandBuffer(device.computeCommandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));

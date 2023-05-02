@@ -484,7 +484,7 @@ namespace easyvk {
 		}
 	}
 
-	void Program::prepare() {
+	void Program::prepare(const char* entry_point) {
 		VkSpecializationMapEntry specMap[1] = {VkSpecializationMapEntry{0, 0, sizeof(uint32_t)}};
 		uint32_t specMapContent[1] = {workgroupSize};
 		VkSpecializationInfo specInfo {1, specMap, sizeof(uint32_t), specMapContent};
@@ -495,7 +495,7 @@ namespace easyvk {
 			VkPipelineShaderStageCreateFlags {},
 			VK_SHADER_STAGE_COMPUTE_BIT,
 			shaderModule,
-			"litmus_test", // TODO: Set entyr-point name in a way which isn't just hard-coded.
+			entry_point,
 			&specInfo};
 
 

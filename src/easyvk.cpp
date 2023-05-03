@@ -511,7 +511,6 @@ namespace easyvk {
 
 		// Create compute pipelines
 		vkCheck(vkCreateComputePipelines(device.device, {}, 1, &pipelineCI, nullptr,  &pipeline));
-		std::printf("Created compute pipeline!\n");
 
 		// Start recording command buffer
 		vkCheck(vkBeginCommandBuffer(device.computeCommandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));

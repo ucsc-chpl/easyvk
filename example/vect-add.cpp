@@ -4,7 +4,7 @@
 #include <cassert>
 #include <vector>
 
-const int size = 4;
+const int size = 16;
 
 int main(int argc, char* argv[]) {
 	// Initialize 
@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
 	program.setWorkgroupSize(1);
 
 	// Run the kernel.
-	program.prepare("litmus_test");
+	program.initialize("litmus_test");
 	program.run();
 
 	// Print and check the output.

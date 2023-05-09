@@ -484,89 +484,7 @@ namespace easyvk {
 		}
 	}
 
-	void Program::prepare(const char* entry_point) {
-		VkSpecializationMapEntry specMap[1] = {VkSpecializationMapEntry{0, 0, sizeof(uint32_t)}};
-		uint32_t specMapContent[1] = {workgroupSize};
-		VkSpecializationInfo specInfo {1, specMap, sizeof(uint32_t), specMapContent};
-		// Define shader stage create info
-		VkPipelineShaderStageCreateInfo stageCI{
-			VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-			nullptr,
-			VkPipelineShaderStageCreateFlags {},
-			VK_SHADER_STAGE_COMPUTE_BIT,
-			shaderModule,
-			entry_point,
-			&specInfo};
-
-
-		// Define compute pipeline create info
-		VkComputePipelineCreateInfo pipelineCI{
-			VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-			nullptr,
-			{},
-			stageCI,
-			pipelineLayout
-		};
-
-
-		// Create compute pipelines
-		vkCheck(vkCreateComputePipelines(device.device, {}, 1, &pipelineCI, nullptr,  &pipeline));
-
-		// Start recording command buffer
-		vkCheck(vkBeginCommandBuffer(device.computeCommandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
-
-		// Bind pipeline and descriptor sets
-		vkCmdBindPipeline(device.computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
-		vkCmdBindDescriptorSets(device.computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-						  pipelineLayout, 0, 1, &descriptorSet, 0, 0);
-
-		// Bind push constants
-		uint32_t pValues[3] = {0, 0, 0};
-		vkCmdPushConstants(device.computeCommandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
-
-        vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
-                             1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
-
-		// Dispatch compute work items
-		vkCmdDispatch(device.computeCommandBuffer, numWorkgroups, 1, 1);
-
-		vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
-							1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
-
-		// End recording command buffer
-		vkCheck(vkEndCommandBuffer(device.computeCommandBuffer));
-	}
-
-	void Program::run() {
-	    // Define submit info
-		VkSubmitInfo submitInfo {
-			VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			nullptr,
-			0,
-			nullptr,
-			nullptr,
-			1,
-			&device.computeCommandBuffer,
-			0,
-            nullptr
-		};
-
-		auto queue = device.computeQueue();
-
-		// Submit command buffer to queue, then wait until queue comes back to idle state
-		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-		vkCheck(vkQueueWaitIdle(queue));
-	}
-
-	void Program::setWorkgroups(uint32_t _numWorkgroups) {
-		numWorkgroups = _numWorkgroups;
-	}
-
-	void Program::setWorkgroupSize(uint32_t _workgroupSize) {
-		workgroupSize = _workgroupSize;
-	}
-
-	void Program::initialize() {
+	void Program::initialize(const char* entry_point) {
 		descriptorSetLayout = createDescriptorSetLayout(device, buffers.size());
 
 		// Define pipeline layout info
@@ -614,20 +532,99 @@ namespace easyvk {
 
 		// Update contents of descriptor set object
 		vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), &writeDescriptorSets.front(), 0,{});
+
+
+		// TODO: Merge into intialize, don't call initalize in constructor.
+		VkSpecializationMapEntry specMap[1] = {VkSpecializationMapEntry{0, 0, sizeof(uint32_t)}};
+		uint32_t specMapContent[1] = {workgroupSize};
+		VkSpecializationInfo specInfo {1, specMap, sizeof(uint32_t), specMapContent};
+		// Define shader stage create info
+		VkPipelineShaderStageCreateInfo stageCI{
+			VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+			nullptr,
+			VkPipelineShaderStageCreateFlags {},
+			VK_SHADER_STAGE_COMPUTE_BIT,
+			shaderModule,
+			entry_point,
+			&specInfo};
+
+
+		// Define compute pipeline create info
+		VkComputePipelineCreateInfo pipelineCI{
+			VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+			nullptr,
+			{},
+			stageCI,
+			pipelineLayout
+		};
+
+		// Create compute pipelines
+		vkCheck(vkCreateComputePipelines(device.device, {}, 1, &pipelineCI, nullptr,  &pipeline));
+	}
+
+	void Program::run() {
+		// Start recording command buffer
+		vkCheck(vkBeginCommandBuffer(device.computeCommandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
+
+		// Bind pipeline and descriptor sets
+		vkCmdBindPipeline(device.computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+		vkCmdBindDescriptorSets(device.computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+						  pipelineLayout, 0, 1, &descriptorSet, 0, 0);
+
+		// Bind push constants
+		uint32_t pValues[3] = {0, 0, 0};
+		vkCmdPushConstants(device.computeCommandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
+
+        vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+                             1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
+
+		// Dispatch compute work items
+		vkCmdDispatch(device.computeCommandBuffer, numWorkgroups, 1, 1);
+
+		vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+							1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
+
+		// End recording command buffer
+		vkCheck(vkEndCommandBuffer(device.computeCommandBuffer));
+
+	    // Define submit info
+		VkSubmitInfo submitInfo {
+			VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			nullptr,
+			0,
+			nullptr,
+			nullptr,
+			1,
+			&device.computeCommandBuffer,
+			0,
+            nullptr
+		};
+
+		auto queue = device.computeQueue();
+
+		// Submit command buffer to queue, then wait until queue comes back to idle state
+		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
+		vkCheck(vkQueueWaitIdle(queue));
+	}
+
+	void Program::setWorkgroups(uint32_t _numWorkgroups) {
+		numWorkgroups = _numWorkgroups;
+	}
+
+	void Program::setWorkgroupSize(uint32_t _workgroupSize) {
+		workgroupSize = _workgroupSize;
 	}
 
 	Program::Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<Buffer> &_buffers) : 
 		device(_device), 
 		shaderModule(initShaderModule(_device, spvCode)), 
 		buffers(_buffers) {
-		initialize();
 	}
 	
 	Program::Program(Device &_device, const char* filepath, std::vector<Buffer> &_buffers) :
 		device(_device),
 		shaderModule(initShaderModule(_device, filepath)),
 		buffers(_buffers) {
-		initialize();
 	}
 
 	void Program::teardown() {

@@ -533,8 +533,6 @@ namespace easyvk {
 		// Update contents of descriptor set object
 		vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), &writeDescriptorSets.front(), 0,{});
 
-
-		// TODO: Merge into intialize, don't call initalize in constructor.
 		VkSpecializationMapEntry specMap[1] = {VkSpecializationMapEntry{0, 0, sizeof(uint32_t)}};
 		uint32_t specMapContent[1] = {workgroupSize};
 		VkSpecializationInfo specInfo {1, specMap, sizeof(uint32_t), specMapContent};

@@ -82,6 +82,7 @@ namespace easyvk {
 			VkPipeline pipeline;
 			uint32_t numWorkgroups;
 			uint32_t workgroupSize;
+			VkFence fence;
 	};
 
 	const char* vkDeviceType(VkPhysicalDeviceType type);

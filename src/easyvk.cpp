@@ -560,6 +560,18 @@ namespace easyvk {
 
 		// Create compute pipelines
 		vkCheck(vkCreateComputePipelines(device.device, {}, 1, &pipelineCI, nullptr,  &pipeline));
+
+		// Create fence.
+		vkCheck(vkCreateFence(
+			device.device,
+			new VkFenceCreateInfo {
+				VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+				nullptr,
+				0
+			},
+			nullptr,
+			&fence
+		));
 	}
 
 	void Program::run() {
@@ -602,9 +614,12 @@ namespace easyvk {
 
 		auto queue = device.computeQueue();
 
-		// Submit command buffer to queue, then wait until queue comes back to idle state
-		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-		vkCheck(vkQueueWaitIdle(queue));
+		// Submit command buffer to queue, signals fence on completion. 
+		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, fence));
+		// Wait on fence.
+		vkCheck(vkWaitForFences(device.device, 1, &fence, VK_TRUE, UINT64_MAX));
+		// Reset fence signal.
+		vkCheck(vkResetFences(device.device, 1, &fence));
 	}
 
 	void Program::setWorkgroups(uint32_t _numWorkgroups) {
@@ -633,5 +648,6 @@ namespace easyvk {
 		vkDestroyDescriptorSetLayout(device.device, descriptorSetLayout, nullptr);
 		vkDestroyPipelineLayout(device.device, pipelineLayout, nullptr);
 		vkDestroyPipeline(device.device, pipeline, nullptr);
+		vkDestroyFence(device.device, fence, nullptr);
 	}
 }

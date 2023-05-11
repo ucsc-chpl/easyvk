@@ -292,29 +292,6 @@ namespace easyvk {
 
 			// Create device
 			vkCheck(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device));
-
-			// Define command pool info
-			VkCommandPoolCreateInfo commandPoolCreateInfo {
-				VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-				nullptr,
-				VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-				computeFamilyId
-			};
-
-			// Create command pool
-			vkCheck(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &computePool));
-
-			// Define command buffer info
-			VkCommandBufferAllocateInfo commandBufferAI {
-				VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-				nullptr,
-				computePool,
-				VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-				1
-			};
-
-			// Allocate command buffers
-			vkCheck(vkAllocateCommandBuffers(device, &commandBufferAI, &computeCommandBuffer));
 			
 			// Get device properties
 			vkGetPhysicalDeviceProperties(physicalDevice, &properties);
@@ -345,7 +322,6 @@ namespace easyvk {
 	}
 
 	void Device::teardown() {
-	    vkDestroyCommandPool(device, computePool, nullptr);
 		vkDestroyDevice(device, nullptr);
 	}
 
@@ -570,32 +546,56 @@ namespace easyvk {
 			nullptr,
 			&fence
 		));
+
+		// Define command pool info
+		VkCommandPoolCreateInfo commandPoolCreateInfo {
+			VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			nullptr,
+			VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+			device.computeFamilyId
+		};
+
+		// Create command pool
+		vkCheck(vkCreateCommandPool(device.device, &commandPoolCreateInfo, nullptr, &commandPool));
+
+
+		// Define command buffer info
+		VkCommandBufferAllocateInfo commandBufferAI {
+			VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			nullptr,
+			commandPool,
+			VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			1
+		};
+
+		// Allocate command buffers
+		vkCheck(vkAllocateCommandBuffers(device.device, &commandBufferAI, &commandBuffer));
 	}
 
 	void Program::run() {
 		// Start recording command buffer
-		vkCheck(vkBeginCommandBuffer(device.computeCommandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
+		vkCheck(vkBeginCommandBuffer(commandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
 
 		// Bind pipeline and descriptor sets
-		vkCmdBindPipeline(device.computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
-		vkCmdBindDescriptorSets(device.computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
 						  pipelineLayout, 0, 1, &descriptorSet, 0, 0);
 
 		// Bind push constants
 		uint32_t pValues[3] = {0, 0, 0};
-		vkCmdPushConstants(device.computeCommandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
+		vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
 
-        vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
                              1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
 
 		// Dispatch compute work items
-		vkCmdDispatch(device.computeCommandBuffer, numWorkgroups, 1, 1);
+		vkCmdDispatch(commandBuffer, numWorkgroups, 1, 1);
 
-		vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+		vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
 							1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
 
 		// End recording command buffer
-		vkCheck(vkEndCommandBuffer(device.computeCommandBuffer));
+		vkCheck(vkEndCommandBuffer(commandBuffer));
 
 	    // Define submit info
 		VkSubmitInfo submitInfo {
@@ -605,7 +605,7 @@ namespace easyvk {
 			nullptr,
 			nullptr,
 			1,
-			&device.computeCommandBuffer,
+			&commandBuffer,
 			0,
             nullptr
 		};

@@ -26,13 +26,11 @@ namespace easyvk {
 			VkPhysicalDeviceProperties properties;
 			uint32_t selectMemory(VkBuffer buffer, VkMemoryPropertyFlags flags);
 			VkQueue computeQueue();
-			VkCommandBuffer computeCommandBuffer;
+			uint32_t computeFamilyId = uint32_t(-1);
 			void teardown();
 		private:
 			Instance &instance;
 			VkPhysicalDevice physicalDevice;
-			VkCommandPool computePool;
-			uint32_t computeFamilyId = uint32_t(-1);
 	};
 
 	class Buffer {
@@ -83,6 +81,8 @@ namespace easyvk {
 			uint32_t numWorkgroups;
 			uint32_t workgroupSize;
 			VkFence fence;
+			VkCommandBuffer commandBuffer;
+			VkCommandPool commandPool;
 	};
 
 	const char* vkDeviceType(VkPhysicalDeviceType type);

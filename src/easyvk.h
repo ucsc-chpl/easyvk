@@ -11,7 +11,7 @@ namespace easyvk {
 	class Instance {
 		public:
 			Instance(bool = false);
-			std::vector<easyvk::Device> devices();
+			std::vector<VkPhysicalDevice> physicalDevices();
 			void teardown();
 		private:
 			bool enableValidationLayers;

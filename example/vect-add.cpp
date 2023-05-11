@@ -7,9 +7,12 @@
 const int size = 16;
 
 int main(int argc, char* argv[]) {
-	// Initialize 
+	// Initialize instance.
 	auto instance = easyvk::Instance(true);
-	auto device = instance.devices().at(0);
+	// Get list of available physical devices.
+	auto physicalDevices = instance.physicalDevices();
+	// Create device from first physical device.
+	auto device = easyvk::Device(instance, physicalDevices.at(0));
 	std::cout << "Using device: " << device.properties.deviceName << "\n";
 
 	// Create GPU buffers.
@@ -41,6 +44,7 @@ int main(int argc, char* argv[]) {
 
 	// Run the kernel.
 	program.initialize("litmus_test");
+	program.run();
 	program.run();
 
 	// Print and check the output.

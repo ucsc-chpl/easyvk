@@ -171,7 +171,7 @@ namespace easyvk {
 		}
 	}
 
-	std::vector<easyvk::Device> Instance::devices() {
+	std::vector<VkPhysicalDevice> Instance::physicalDevices() {
 	    // Get physical device count
 		uint32_t deviceCount = 0;
 		vkCheck(vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr));
@@ -180,12 +180,7 @@ namespace easyvk {
 		std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
 		vkCheck(vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices.data()));
 
-		// Store devices in vector
-		auto devices = std::vector<easyvk::Device>{};
-		for (auto device : physicalDevices) {
-			devices.push_back(easyvk::Device(*this, device));
-		}
-		return devices;
+		return physicalDevices;
 	}
 
 	void Instance::teardown() {
@@ -522,7 +517,6 @@ namespace easyvk {
 			entry_point,
 			&specInfo};
 
-
 		// Define compute pipeline create info
 		VkComputePipelineCreateInfo pipelineCI{
 			VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -557,7 +551,6 @@ namespace easyvk {
 
 		// Create command pool
 		vkCheck(vkCreateCommandPool(device.device, &commandPoolCreateInfo, nullptr, &commandPool));
-
 
 		// Define command buffer info
 		VkCommandBufferAllocateInfo commandBufferAI {
@@ -647,5 +640,6 @@ namespace easyvk {
 		vkDestroyPipelineLayout(device.device, pipelineLayout, nullptr);
 		vkDestroyPipeline(device.device, pipeline, nullptr);
 		vkDestroyFence(device.device, fence, nullptr);
+		vkDestroyCommandPool(device.device, commandPool, nullptr);
 	}
 }

@@ -171,7 +171,7 @@ namespace easyvk {
 		}
 	}
 
-	std::vector<easyvk::Device> Instance::devices() {
+	std::vector<VkPhysicalDevice> Instance::physicalDevices() {
 	    // Get physical device count
 		uint32_t deviceCount = 0;
 		vkCheck(vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr));
@@ -180,12 +180,7 @@ namespace easyvk {
 		std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
 		vkCheck(vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices.data()));
 
-		// Store devices in vector
-		auto devices = std::vector<easyvk::Device>{};
-		for (auto device : physicalDevices) {
-			devices.push_back(easyvk::Device(*this, device));
-		}
-		return devices;
+		return physicalDevices;
 	}
 
 	void Instance::teardown() {
@@ -292,29 +287,6 @@ namespace easyvk {
 
 			// Create device
 			vkCheck(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device));
-
-			// Define command pool info
-			VkCommandPoolCreateInfo commandPoolCreateInfo {
-				VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-				nullptr,
-				VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-				computeFamilyId
-			};
-
-			// Create command pool
-			vkCheck(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &computePool));
-
-			// Define command buffer info
-			VkCommandBufferAllocateInfo commandBufferAI {
-				VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-				nullptr,
-				computePool,
-				VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-				1
-			};
-
-			// Allocate command buffers
-			vkCheck(vkAllocateCommandBuffers(device, &commandBufferAI, &computeCommandBuffer));
 			
 			// Get device properties
 			vkGetPhysicalDeviceProperties(physicalDevice, &properties);
@@ -345,7 +317,6 @@ namespace easyvk {
 	}
 
 	void Device::teardown() {
-	    vkDestroyCommandPool(device, computePool, nullptr);
 		vkDestroyDevice(device, nullptr);
 	}
 
@@ -484,89 +455,7 @@ namespace easyvk {
 		}
 	}
 
-	void Program::prepare(const char* entry_point) {
-		VkSpecializationMapEntry specMap[1] = {VkSpecializationMapEntry{0, 0, sizeof(uint32_t)}};
-		uint32_t specMapContent[1] = {workgroupSize};
-		VkSpecializationInfo specInfo {1, specMap, sizeof(uint32_t), specMapContent};
-		// Define shader stage create info
-		VkPipelineShaderStageCreateInfo stageCI{
-			VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-			nullptr,
-			VkPipelineShaderStageCreateFlags {},
-			VK_SHADER_STAGE_COMPUTE_BIT,
-			shaderModule,
-			entry_point,
-			&specInfo};
-
-
-		// Define compute pipeline create info
-		VkComputePipelineCreateInfo pipelineCI{
-			VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-			nullptr,
-			{},
-			stageCI,
-			pipelineLayout
-		};
-
-
-		// Create compute pipelines
-		vkCheck(vkCreateComputePipelines(device.device, {}, 1, &pipelineCI, nullptr,  &pipeline));
-
-		// Start recording command buffer
-		vkCheck(vkBeginCommandBuffer(device.computeCommandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
-
-		// Bind pipeline and descriptor sets
-		vkCmdBindPipeline(device.computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
-		vkCmdBindDescriptorSets(device.computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-						  pipelineLayout, 0, 1, &descriptorSet, 0, 0);
-
-		// Bind push constants
-		uint32_t pValues[3] = {0, 0, 0};
-		vkCmdPushConstants(device.computeCommandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
-
-        vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
-                             1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
-
-		// Dispatch compute work items
-		vkCmdDispatch(device.computeCommandBuffer, numWorkgroups, 1, 1);
-
-		vkCmdPipelineBarrier(device.computeCommandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
-							1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
-
-		// End recording command buffer
-		vkCheck(vkEndCommandBuffer(device.computeCommandBuffer));
-	}
-
-	void Program::run() {
-	    // Define submit info
-		VkSubmitInfo submitInfo {
-			VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			nullptr,
-			0,
-			nullptr,
-			nullptr,
-			1,
-			&device.computeCommandBuffer,
-			0,
-            nullptr
-		};
-
-		auto queue = device.computeQueue();
-
-		// Submit command buffer to queue, then wait until queue comes back to idle state
-		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-		vkCheck(vkQueueWaitIdle(queue));
-	}
-
-	void Program::setWorkgroups(uint32_t _numWorkgroups) {
-		numWorkgroups = _numWorkgroups;
-	}
-
-	void Program::setWorkgroupSize(uint32_t _workgroupSize) {
-		workgroupSize = _workgroupSize;
-	}
-
-	void Program::initialize() {
+	void Program::initialize(const char* entry_point) {
 		descriptorSetLayout = createDescriptorSetLayout(device, buffers.size());
 
 		// Define pipeline layout info
@@ -614,20 +503,134 @@ namespace easyvk {
 
 		// Update contents of descriptor set object
 		vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), &writeDescriptorSets.front(), 0,{});
+
+		VkSpecializationMapEntry specMap[1] = {VkSpecializationMapEntry{0, 0, sizeof(uint32_t)}};
+		uint32_t specMapContent[1] = {workgroupSize};
+		VkSpecializationInfo specInfo {1, specMap, sizeof(uint32_t), specMapContent};
+		// Define shader stage create info
+		VkPipelineShaderStageCreateInfo stageCI{
+			VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+			nullptr,
+			VkPipelineShaderStageCreateFlags {},
+			VK_SHADER_STAGE_COMPUTE_BIT,
+			shaderModule,
+			entry_point,
+			&specInfo};
+
+		// Define compute pipeline create info
+		VkComputePipelineCreateInfo pipelineCI{
+			VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+			nullptr,
+			{},
+			stageCI,
+			pipelineLayout
+		};
+
+		// Create compute pipelines
+		vkCheck(vkCreateComputePipelines(device.device, {}, 1, &pipelineCI, nullptr,  &pipeline));
+
+		// Create fence.
+		vkCheck(vkCreateFence(
+			device.device,
+			new VkFenceCreateInfo {
+				VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+				nullptr,
+				0
+			},
+			nullptr,
+			&fence
+		));
+
+		// Define command pool info
+		VkCommandPoolCreateInfo commandPoolCreateInfo {
+			VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			nullptr,
+			VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+			device.computeFamilyId
+		};
+
+		// Create command pool
+		vkCheck(vkCreateCommandPool(device.device, &commandPoolCreateInfo, nullptr, &commandPool));
+
+		// Define command buffer info
+		VkCommandBufferAllocateInfo commandBufferAI {
+			VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			nullptr,
+			commandPool,
+			VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			1
+		};
+
+		// Allocate command buffers
+		vkCheck(vkAllocateCommandBuffers(device.device, &commandBufferAI, &commandBuffer));
+	}
+
+	void Program::run() {
+		// Start recording command buffer
+		vkCheck(vkBeginCommandBuffer(commandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
+
+		// Bind pipeline and descriptor sets
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+						  pipelineLayout, 0, 1, &descriptorSet, 0, 0);
+
+		// Bind push constants
+		uint32_t pValues[3] = {0, 0, 0};
+		vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+                             1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
+
+		// Dispatch compute work items
+		vkCmdDispatch(commandBuffer, numWorkgroups, 1, 1);
+
+		vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+							1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
+
+		// End recording command buffer
+		vkCheck(vkEndCommandBuffer(commandBuffer));
+
+	    // Define submit info
+		VkSubmitInfo submitInfo {
+			VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			nullptr,
+			0,
+			nullptr,
+			nullptr,
+			1,
+			&commandBuffer,
+			0,
+            nullptr
+		};
+
+		auto queue = device.computeQueue();
+
+		// Submit command buffer to queue, signals fence on completion. 
+		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, fence));
+		// Wait on fence.
+		vkCheck(vkWaitForFences(device.device, 1, &fence, VK_TRUE, UINT64_MAX));
+		// Reset fence signal.
+		vkCheck(vkResetFences(device.device, 1, &fence));
+	}
+
+	void Program::setWorkgroups(uint32_t _numWorkgroups) {
+		numWorkgroups = _numWorkgroups;
+	}
+
+	void Program::setWorkgroupSize(uint32_t _workgroupSize) {
+		workgroupSize = _workgroupSize;
 	}
 
 	Program::Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<Buffer> &_buffers) : 
 		device(_device), 
 		shaderModule(initShaderModule(_device, spvCode)), 
 		buffers(_buffers) {
-		initialize();
 	}
 	
 	Program::Program(Device &_device, const char* filepath, std::vector<Buffer> &_buffers) :
 		device(_device),
 		shaderModule(initShaderModule(_device, filepath)),
 		buffers(_buffers) {
-		initialize();
 	}
 
 	void Program::teardown() {
@@ -636,5 +639,7 @@ namespace easyvk {
 		vkDestroyDescriptorSetLayout(device.device, descriptorSetLayout, nullptr);
 		vkDestroyPipelineLayout(device.device, pipelineLayout, nullptr);
 		vkDestroyPipeline(device.device, pipeline, nullptr);
+		vkDestroyFence(device.device, fence, nullptr);
+		vkDestroyCommandPool(device.device, commandPool, nullptr);
 	}
 }

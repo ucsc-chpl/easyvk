@@ -11,7 +11,7 @@ namespace easyvk {
 	class Instance {
 		public:
 			Instance(bool = false);
-			std::vector<easyvk::Device> devices();
+			std::vector<VkPhysicalDevice> physicalDevices();
 			void teardown();
 		private:
 			bool enableValidationLayers;
@@ -26,13 +26,11 @@ namespace easyvk {
 			VkPhysicalDeviceProperties properties;
 			uint32_t selectMemory(VkBuffer buffer, VkMemoryPropertyFlags flags);
 			VkQueue computeQueue();
-			VkCommandBuffer computeCommandBuffer;
+			uint32_t computeFamilyId = uint32_t(-1);
 			void teardown();
 		private:
 			Instance &instance;
 			VkPhysicalDevice physicalDevice;
-			VkCommandPool computePool;
-			uint32_t computeFamilyId = uint32_t(-1);
 	};
 
 	class Buffer {
@@ -64,8 +62,7 @@ namespace easyvk {
 		public:
 			Program(Device &_device, const char* filepath, std::vector<easyvk::Buffer> &buffers);
 			Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<easyvk::Buffer> &buffers);
-			void initialize();
-			void prepare(const char* entry_point);
+			void initialize(const char* entry_point);
 			void run();
 			void setWorkgroups(uint32_t _numWorkgroups);
 			void setWorkgroupSize(uint32_t _workgroupSize);
@@ -83,6 +80,9 @@ namespace easyvk {
 			VkPipeline pipeline;
 			uint32_t numWorkgroups;
 			uint32_t workgroupSize;
+			VkFence fence;
+			VkCommandBuffer commandBuffer;
+			VkCommandPool commandPool;
 	};
 
 	const char* vkDeviceType(VkPhysicalDeviceType type);

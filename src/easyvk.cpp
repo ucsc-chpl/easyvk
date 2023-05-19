@@ -1,14 +1,4 @@
-#include <vector>
-#include <array>
-#include <fstream>
-#include <set>
-#include <stdarg.h>
-
 #include "easyvk.h"
-
-#ifdef __ANDROID__
-#include <android/log.h>
-#endif
 
 // TODO: extend this to include ios logging lib
 void evk_log(const char* fmt, ...) {

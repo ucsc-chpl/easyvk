@@ -1,5 +1,14 @@
-#include <vulkan/vulkan.h>
+#include <array>
+#include <cstdint>
+#include <fstream>
+#include <set>
+#include <stdarg.h>
 #include <vector>
+
+#include <vulkan/vulkan.h>
+#ifdef __ANDROID__
+	#include <android/log.h>
+#endif
 
 namespace easyvk {
 

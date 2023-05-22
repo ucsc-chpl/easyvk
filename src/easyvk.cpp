@@ -574,9 +574,6 @@ namespace easyvk {
 		// Start recording command buffer
 		vkCheck(vkBeginCommandBuffer(commandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
 
-		// Reset query pool.
-		vkCmdResetQueryPool(commandBuffer, timestampQueryPool, 0, 2);
-
 		// Bind pipeline and descriptor sets
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -624,6 +621,9 @@ namespace easyvk {
 	float Program::runWithDispatchTiming() {
 		// Start recording command buffer
 		vkCheck(vkBeginCommandBuffer(commandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
+
+		// Reset query pool.
+		vkCmdResetQueryPool(commandBuffer, timestampQueryPool, 0, 2);
 
 		// Bind pipeline and descriptor sets
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);

@@ -553,11 +553,29 @@ namespace easyvk {
 
 		// Allocate command buffers
 		vkCheck(vkAllocateCommandBuffers(device.device, &commandBufferAI, &commandBuffer));
+
+		// Create timestamp query pool
+		// TODO: Device support limits need to be queried.
+		vkCheck(vkCreateQueryPool(
+			device.device,
+			new VkQueryPoolCreateInfo {
+				VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+				VK_NULL_HANDLE,
+				0,
+				VK_QUERY_TYPE_TIMESTAMP,
+				2
+			},
+			VK_NULL_HANDLE,
+			&timestampQueryPool
+		));
 	}
 
 	void Program::run() {
 		// Start recording command buffer
 		vkCheck(vkBeginCommandBuffer(commandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
+
+		// Reset query pool.
+		vkCmdResetQueryPool(commandBuffer, timestampQueryPool, 0, 2);
 
 		// Bind pipeline and descriptor sets
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
@@ -603,6 +621,76 @@ namespace easyvk {
 		vkCheck(vkResetFences(device.device, 1, &fence));
 	}
 
+	float Program::runWithDispatchTiming() {
+		// Start recording command buffer
+		vkCheck(vkBeginCommandBuffer(commandBuffer, new VkCommandBufferBeginInfo {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO}));
+
+		// Bind pipeline and descriptor sets
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+						  pipelineLayout, 0, 1, &descriptorSet, 0, 0);
+
+		// Bind push constants
+		uint32_t pValues[3] = {0, 0, 0};
+		vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes, &pValues);
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+                             1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
+		
+		// Write first timestamp.
+		vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, timestampQueryPool, 0);
+
+		// Dispatch compute work items
+		vkCmdDispatch(commandBuffer, numWorkgroups, 1, 1);
+
+		vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0,
+							1, new VkMemoryBarrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_HOST_READ_BIT}, 0, {}, 0, {});
+
+		// Write second timestamp.
+		vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, timestampQueryPool, 1);
+
+
+		// End recording command buffer
+		vkCheck(vkEndCommandBuffer(commandBuffer));
+
+	    // Define submit info
+		VkSubmitInfo submitInfo {
+			VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			nullptr,
+			0,
+			nullptr,
+			nullptr,
+			1,
+			&commandBuffer,
+			0,
+            nullptr
+		};
+
+		auto queue = device.computeQueue();
+
+		// Submit command buffer to queue, signals fence on completion. 
+		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, fence));
+		// Wait on fence.
+		vkCheck(vkWaitForFences(device.device, 1, &fence, VK_TRUE, UINT64_MAX));
+		// Reset fence signal.
+		vkCheck(vkResetFences(device.device, 1, &fence));
+
+		// Get timestamp query results.
+		uint64_t queryResults[2] = {0, 0};
+		vkCheck(vkGetQueryPoolResults(
+			device.device,
+			timestampQueryPool,
+			0, 
+			2,
+			sizeof(uint64_t) * 2,
+			queryResults,
+			sizeof(uint64_t),
+			VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+		));
+
+		return (queryResults[1] - queryResults[0]) * device.properties.limits.timestampPeriod;
+	}
+
 	void Program::setWorkgroups(uint32_t _numWorkgroups) {
 		numWorkgroups = _numWorkgroups;
 	}
@@ -631,5 +719,6 @@ namespace easyvk {
 		vkDestroyPipeline(device.device, pipeline, nullptr);
 		vkDestroyFence(device.device, fence, nullptr);
 		vkDestroyCommandPool(device.device, commandPool, nullptr);
+		vkDestroyQueryPool(device.device, timestampQueryPool, VK_NULL_HANDLE);
 	}
 }

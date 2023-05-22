@@ -73,6 +73,7 @@ namespace easyvk {
 			Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<easyvk::Buffer> &buffers);
 			void initialize(const char* entry_point);
 			void run();
+			float runWithDispatchTiming();
 			void setWorkgroups(uint32_t _numWorkgroups);
 			void setWorkgroupSize(uint32_t _workgroupSize);
 			void teardown();
@@ -92,6 +93,7 @@ namespace easyvk {
 			VkFence fence;
 			VkCommandBuffer commandBuffer;
 			VkCommandPool commandPool;
+			VkQueryPool timestampQueryPool;
 	};
 
 	const char* vkDeviceType(VkPhysicalDeviceType type);

@@ -199,7 +199,7 @@ namespace easyvk {
 		// Get compute family id based on size of family properties
 		for (auto queueFamily : familyProperties) {
 			if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
-				computeFamilyId = i;;
+				computeFamilyId = i;
 				break;
 			}
 			i++;
@@ -277,6 +277,9 @@ namespace easyvk {
 
 			// Create device
 			vkCheck(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device));
+
+			// Get queue handle.
+			vkGetDeviceQueue(device, computeFamilyId, 0, &computeQueue);
 			
 			// Get device properties
 			vkGetPhysicalDeviceProperties(physicalDevice, &properties);
@@ -297,13 +300,6 @@ namespace easyvk {
 			}
 		}
 		return uint32_t(-1);
-	}
-
-	// Get device queue
-	VkQueue Device::computeQueue() {
-		VkQueue queue;
-		vkGetDeviceQueue(device, computeFamilyId, 0, &queue);
-		return queue;
 	}
 
 	void Device::teardown() {
@@ -608,7 +604,7 @@ namespace easyvk {
             nullptr
 		};
 
-		auto queue = device.computeQueue();
+		auto queue = device.computeQueue;
 
 		// Submit command buffer to queue, signals fence on completion. 
 		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, fence));
@@ -666,7 +662,7 @@ namespace easyvk {
             nullptr
 		};
 
-		auto queue = device.computeQueue();
+		auto queue = device.computeQueue;
 
 		// Submit command buffer to queue, signals fence on completion. 
 		vkCheck(vkQueueSubmit(queue, 1, &submitInfo, fence));

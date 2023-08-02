@@ -2,7 +2,7 @@ CXXFLAGS = -std=c++17
 
 .PHONY: all clean easyvk
 
-all: build easyvk android
+all: build easyvk
 
 build:
 	mkdir -p build

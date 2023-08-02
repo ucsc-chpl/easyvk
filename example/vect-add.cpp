@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 	auto device = easyvk::Device(instance, physicalDevices.at(0));
 	std::cout << "Using device: " << device.properties.deviceName << "\n";
 
-	auto numIters = 1024 * 32;
+	auto numIters = 1;
 	// Create GPU buffers.
 	for (int n = 0; n < numIters; n++) {
 		auto a = easyvk::Buffer(device, size);
@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
 		const char* testFile = "build/vect-add.spv";
 		// 2. .spv binary loaded into the executable at compile time.
 		std::vector<uint32_t> spvCode =
-		#include "vect-add.cinit"
+		#include "build/vect-add.cinit"
 		;	
 		auto program = easyvk::Program(device, spvCode, bufs);
 
@@ -47,11 +47,11 @@ int main(int argc, char* argv[]) {
 
 		program.run();
 
-			// Print and check the output.
-			// for (int i = 0; i < size; i++) {
-			// 	// std::cout << "c[" << i << "]: " << c.load(i) << "\n";
-			// 	assert(c.load(i) == a.load(i) + b.load(i));
-			// }
+		// Check the output.
+		for (int i = 0; i < size; i++) {
+			// std::cout << "c[" << i << "]: " << c.load(i) << "\n";
+			assert(c.load(i) == a.load(i) + b.load(i));
+		}
 
 		// Cleanup.
 		program.teardown();

@@ -2,10 +2,10 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE    := my-app
+LOCAL_MODULE    := easyvk
 LOCAL_C_INCLUDES := src/ 
 LOCAL_SRC_FILES := src/easyvk.cpp
-LOCAL_LDLIBS    += -lvulkan
+LOCAL_LDLIBS    += -lvulkan -llog
 
 #include $(BUILD_EXECUTABLE)
 include $(BUILD_SHARED_LIBRARY)

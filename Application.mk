@@ -1,5 +1,5 @@
 APP_BUILD_SCRIPT := Android.mk
-APP_STL := c++_shared # TODO: This could maybe be something different.
+APP_STL := c++_shared # TODO: Not sure what this should be.
 APP_ABI := all 
-# TODO: Specify android platform version
-#APP_PLATFORM := ...
+APP_CPPFLAGS := -fexceptions
+APP_PLATFORM := 24

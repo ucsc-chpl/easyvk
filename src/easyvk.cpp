@@ -339,7 +339,7 @@ namespace easyvk {
 
             void* newData = new void*;
             vkCheck(vkMapMemory(_device.device, memory, 0, VK_WHOLE_SIZE, VkMemoryMapFlags {}, &newData));
-            data = (uint32_t*)newData;
+            data = newData;
 		}
 
 

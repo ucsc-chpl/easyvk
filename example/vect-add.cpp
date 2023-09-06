@@ -28,8 +28,8 @@ int main(int argc, char* argv[]) {
 			// the type when using the load/store methods. 
 			a.store<uint32_t>(i, i);
 			b.store<double>(i, i + 1);
-			c.store<double>(i, 0);
 		}
+		c.clear();
 		std::vector<easyvk::Buffer> bufs = {a, b, c};
 
 		// Kernel source code can be loaded in two ways: 

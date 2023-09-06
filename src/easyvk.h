@@ -80,17 +80,23 @@ namespace easyvk {
 				return *(reinterpret_cast<T*>(data) + i);
 			}
 
+			/**
+			 * Zero out the memory associated with the buffer.
+			*/
 			void clear() {
-				for (uint32_t i = 0; i < size; i++)
-					store(i, 0);
+				auto buf = static_cast<char *>(data);
+				for (size_t i = 0; i < _numElements * _elementSize; i++) {
+					buf[i] = 0;
+				}
 			}
 
 			void teardown();
 		private:
 			easyvk::Device &device;
 			VkDeviceMemory memory;
-			uint32_t size;
-            void* data;
+			size_t _numElements;
+			size_t _elementSize;
+            void *data;
 	};
 
 	class Program {

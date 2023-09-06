@@ -321,7 +321,8 @@ namespace easyvk {
 	Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) :
 		device(_device),
 		buffer(getNewBuffer(_device, numElements * elementSize)),
-		size(numElements)
+		_numElements(numElements),
+		_elementSize(elementSize)
 		{
             // Allocate and map memory to new buffer
 	        auto memId = _device.selectMemory(buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);

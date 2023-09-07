@@ -42,29 +42,61 @@ namespace easyvk {
 			VkPhysicalDevice physicalDevice;
 	};
 
+	/**
+	 * @brief Represents a buffer for storing data elements in device memory.
+	 * 
+	 * The Buffer class provides a convenient interface for allocating and interacting with 
+	 * VKBuffers tied to device memory. The buffer is implicitly un-typed and the load/store 
+	 * methods provide templated views to the underlying buffer.
+	 * 
+	 * NOTE: The correctness of this implementation relies on whether the OpenCL data types are 
+	 * interepreted and represented the same way as on the host device. For example, you 
+	 * define a buffer of 256 longs like this:
+	 * 
+	 *     auto myBuf = Buffer(device, 256, sizeof(long));
+	 * 
+	 * And you would use myBuf.store<long>(...) and myBuf.load<long>(...) to write/read to the 
+	 * buffer from the host. However, if your host device has a specification for that what a 
+	 * long is that doesn't match OpenCL's spec, then you are going to get unexpected behavior.
+	 * I think the OpenCL spec should match the spec for most modern devices, but you should 
+	 * verify to be safe. See http://man.opencl.org/scalarDataTypes.html for how OpenCL 
+	 * specifies it's types.
+	 */
 	class Buffer {
 		public:
-			Buffer(Device &device, uint32_t size);
+			Buffer(Device &device, size_t numElements, size_t elementSize);
 			VkBuffer buffer;
 
-			void store(size_t i, uint32_t value) {
-				*(data + i) = value;
+
+			// The below load and store implementations use a type template which dictates
+			// how the underlying buffer should be interpreted. 
+			template <typename T>
+			void store(size_t i, T value) {
+				*(reinterpret_cast<T*>(data) + i) = value;
 			}
 
-			uint32_t load(size_t i) {
-				return *(data + i);
+			template <typename T>
+			T load(size_t i) {
+				return *(reinterpret_cast<T*>(data) + i);
 			}
+
+			/**
+			 * Zero out the memory associated with the buffer.
+			*/
 			void clear() {
-				for (uint32_t i = 0; i < size; i++)
-					store(i, 0);
+				auto buf = static_cast<char *>(data);
+				for (size_t i = 0; i < _numElements * _elementSize; i++) {
+					buf[i] = 0;
+				}
 			}
 
 			void teardown();
 		private:
 			easyvk::Device &device;
 			VkDeviceMemory memory;
-			uint32_t size;
-            uint32_t* data;
+			size_t _numElements;
+			size_t _elementSize;
+            void *data;
 	};
 
 	class Program {

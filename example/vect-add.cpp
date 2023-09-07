@@ -16,18 +16,20 @@ int main(int argc, char* argv[]) {
 	std::cout << "Using device: " << device.properties.deviceName << "\n";
 
 	auto numIters = 1;
-	// Create GPU buffers.
 	for (int n = 0; n < numIters; n++) {
-		auto a = easyvk::Buffer(device, size);
-		auto b = easyvk::Buffer(device, size);
-		auto c = easyvk::Buffer(device, size);
+		// Define the buffers to use in the kernel. 
+		auto a = easyvk::Buffer(device, size, sizeof(uint32_t));
+		auto b = easyvk::Buffer(device, size, sizeof(double));
+		auto c = easyvk::Buffer(device, size, sizeof(double));
 
 		// Write initial values to the buffers.
 		for (int i = 0; i < size; i++) {
-			a.store(i, i);
-			b.store(i, i + 1);
-			c.store(i, 0);
+			// The buffer provides an untyped view of the memory, so you must specify
+			// the type when using the load/store methods. 
+			a.store<uint32_t>(i, i);
+			b.store<double>(i, i + 1);
 		}
+		c.clear();
 		std::vector<easyvk::Buffer> bufs = {a, b, c};
 
 		// Kernel source code can be loaded in two ways: 
@@ -50,7 +52,7 @@ int main(int argc, char* argv[]) {
 		// Check the output.
 		for (int i = 0; i < size; i++) {
 			// std::cout << "c[" << i << "]: " << c.load(i) << "\n";
-			assert(c.load(i) == a.load(i) + b.load(i));
+			assert(c.load<double>(i) == a.load<uint32_t>(i) + b.load<double>(i));
 		}
 
 		// Cleanup.

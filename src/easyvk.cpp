@@ -313,15 +313,16 @@ namespace easyvk {
 			VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			nullptr,
 			VkBufferCreateFlags {},
-			size * sizeof(uint32_t),
+			size,
 			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT }, nullptr, &newBuffer));
 		return newBuffer;
 	}
 
-	Buffer::Buffer(easyvk::Device &_device, uint32_t _size) :
+	Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) :
 		device(_device),
-		buffer(getNewBuffer(_device, _size)),
-		size(_size)
+		buffer(getNewBuffer(_device, numElements * elementSize)),
+		_numElements(numElements),
+		_elementSize(elementSize)
 		{
             // Allocate and map memory to new buffer
 	        auto memId = _device.selectMemory(buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -339,7 +340,7 @@ namespace easyvk {
 
             void* newData = new void*;
             vkCheck(vkMapMemory(_device.device, memory, 0, VK_WHOLE_SIZE, VkMemoryMapFlags {}, &newData));
-            data = (uint32_t*)newData;
+            data = newData;
 		}
 
 

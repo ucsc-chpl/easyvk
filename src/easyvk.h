@@ -108,7 +108,7 @@ namespace easyvk {
 			/**
 			 * Returns the total size of the underlying buffer (in bytes).
 			*/
-			size_t size() {
+			size_t size() const {
 				return _numElements * _elementSize;
 			}
 

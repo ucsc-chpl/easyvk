@@ -83,7 +83,6 @@ namespace easyvk {
 			Buffer(Device &device, size_t numElements, size_t elementSize);
 			VkBuffer buffer;
 
-
 			// The below load and store implementations use a type template which dictates
 			// how the underlying buffer should be interpreted. 
 			template <typename T>
@@ -106,7 +105,16 @@ namespace easyvk {
 				}
 			}
 
+			/**
+			 * Returns the total size of the underlying buffer (in bytes).
+			*/
+			size_t size() {
+				return _numElements * _elementSize;
+			}
+
 			void teardown();
+
+
 		private:
 			easyvk::Device &device;
 			VkDeviceMemory memory;

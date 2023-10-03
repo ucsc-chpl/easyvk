@@ -318,6 +318,19 @@ namespace easyvk {
 		return uint32_t(-1);
 	}
 
+  uint32_t Device::subgroupSize() {
+    VkPhysicalDeviceSubgroupProperties subgroupProperties;
+    subgroupProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+    subgroupProperties.pNext = NULL;
+
+    VkPhysicalDeviceProperties2 physicalDeviceProperties;
+    physicalDeviceProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    physicalDeviceProperties.pNext = &subgroupProperties;
+
+    vkGetPhysicalDeviceProperties2(physicalDevice, &physicalDeviceProperties);
+    return subgroupProperties.subgroupSize;
+  }
+
 	void Device::teardown() {
 		vkDestroyDevice(device, nullptr);
 	}

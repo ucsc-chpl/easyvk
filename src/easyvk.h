@@ -20,6 +20,7 @@
 #include <set>
 #include <stdarg.h>
 #include <vector>
+#include <map>
 
 #include <vulkan/vulkan.h>
 #ifdef __ANDROID__

@@ -124,6 +124,11 @@ namespace easyvk {
             void *data;
 	};
 
+	/**
+	 * A program consists of shader code and the buffers/inputs to the shader
+	 * Buffers should be passed in according to their argument order in the shader.
+	 * Workgroup memory buffers are indexed from 0.
+	 */
 	class Program {
 		public:
 			Program(Device &_device, const char* filepath, std::vector<easyvk::Buffer> &buffers);
@@ -133,9 +138,11 @@ namespace easyvk {
 			float runWithDispatchTiming();
 			void setWorkgroups(uint32_t _numWorkgroups);
 			void setWorkgroupSize(uint32_t _workgroupSize);
+			void setWorkgroupMemoryLength(uint32_t length, uint32_t index);
 			void teardown();
 		private:
 			std::vector<easyvk::Buffer> &buffers;
+			std::map<uint32_t, uint32_t> workgroupMemoryLengths;
 			VkShaderModule shaderModule;
 			easyvk::Device &device;
 			VkDescriptorSetLayout descriptorSetLayout;

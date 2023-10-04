@@ -520,9 +520,27 @@ namespace easyvk {
 		// Update contents of descriptor set object
 		vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), &writeDescriptorSets.front(), 0,{});
 
-		VkSpecializationMapEntry specMap[1] = {VkSpecializationMapEntry{0, 0, sizeof(uint32_t)}};
-		uint32_t specMapContent[1] = {workgroupSize};
-		VkSpecializationInfo specInfo {1, specMap, sizeof(uint32_t), specMapContent};
+		uint32_t numSpecConstants = 3 + workgroupMemoryLengths.size();
+		VkSpecializationMapEntry specMap[numSpecConstants];
+		uint32_t specMapContent[numSpecConstants];
+
+		// first three specialization constants are the workgroup size
+		specMap[0] = VkSpecializationMapEntry{0, 0, sizeof(uint32_t)};
+		specMapContent[0] = workgroupSize;
+		specMap[1] = VkSpecializationMapEntry{1, 4, sizeof(uint32_t)};
+		specMapContent[1] = 1;
+		specMap[2] = VkSpecializationMapEntry{2, 8, sizeof(uint32_t)};
+		specMapContent[2] = 1;
+
+		// key is index, value is length
+		for (const auto &[key, value] : workgroupMemoryLengths)
+		{
+			specMap[3 + key] = VkSpecializationMapEntry{3 + key, (3 + key) * 4, sizeof(uint32_t)};
+			specMapContent[3 + key] = value;
+		}
+
+		VkSpecializationInfo specInfo{numSpecConstants, specMap, numSpecConstants * sizeof(uint32_t), specMapContent};
+
 		// Define shader stage create info
 		VkPipelineShaderStageCreateInfo stageCI{
 			VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -723,6 +741,10 @@ namespace easyvk {
 
 	void Program::setWorkgroupSize(uint32_t _workgroupSize) {
 		workgroupSize = _workgroupSize;
+	}
+
+	void Program::setWorkgroupMemoryLength(uint32_t length, uint32_t index) {
+		workgroupMemoryLengths[index] = length;
 	}
 
 	Program::Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<Buffer> &_buffers) : 

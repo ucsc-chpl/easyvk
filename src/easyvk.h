@@ -52,7 +52,7 @@ namespace easyvk {
 			VkPhysicalDeviceProperties properties;
 			uint32_t selectMemory(VkBuffer buffer, VkMemoryPropertyFlags flags);
 			uint32_t computeFamilyId = uint32_t(-1);
-      uint32_t subgroupSize();
+      		uint32_t subgroupSize();
 			VkQueue computeQueue; 
 			void teardown();
 		private:

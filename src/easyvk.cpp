@@ -255,6 +255,10 @@ namespace easyvk {
 				}
 			}
 
+      VkPhysicalDeviceFeatures features;
+      vkGetPhysicalDeviceFeatures(phsyicalDevice, &features);
+      features.robustBufferAccess = false;
+
 			// Define device info
 			std::vector<const char*> enabledExtensions { };
 
@@ -274,7 +278,8 @@ namespace easyvk {
 					0,
 					nullptr,
 					(uint32_t)enabledExtensions.size(),
-					enabledExtensions.data()
+					enabledExtensions.data(),
+					&features
 				};
 			}
 			else {

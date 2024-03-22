@@ -15,6 +15,7 @@
 */
 
 #include "easyvk.h"
+#include <iostream>
 
 // TODO: extend this to include ios logging lib
 void evk_log(const char* fmt, ...) {
@@ -96,6 +97,7 @@ namespace easyvk {
 			, void*                      pUserData)-> VkBool32 {
 		std::ofstream debugFile("vk-output.txt");
 		debugFile << "[Vulkan]:" << pLayerPrefix << ": " << pMessage << "\n";
+    std::cout << "[Vulkan]:" << pLayerPrefix << ": " << pMessage << "\n";
 		debugFile.close();
 	    return VK_FALSE;
     	}
@@ -107,7 +109,6 @@ namespace easyvk {
 		if (enableValidationLayers) {
 			enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
 			enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-			//enabledExtensions.push_back("VK_KHR_shader_non_semantic_info");
 		}
 		#ifdef __APPLE__
 		enabledExtensions.push_back("VK_KHR_portability_enumeration");
@@ -121,7 +122,7 @@ namespace easyvk {
 		    0,
 		    "Heterogeneous Programming Group",
 		    0,
-		    VK_API_VERSION_1_1
+		    VK_API_VERSION_1_3
 		};
 		
 		#ifdef __APPLE__
@@ -161,13 +162,6 @@ namespace easyvk {
 			else {
 			}
 		}
-
-		// List out instance's enabled extensions
-		uint32_t count;
-		vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-		std::vector<VkExtensionProperties> extensions(count);
-		vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data());
-		std::set<std::string> results;
 
 		// Print out vulkan's instance version
 		uint32_t version;
@@ -241,37 +235,23 @@ namespace easyvk {
 				&priority
 			};
 
-			// Get device's enabled extensions
-			uint32_t count;
-			vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, nullptr);
-			std::vector<VkExtensionProperties> extensions(count);
-			vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, extensions.data());
-			bool vulkan_memory_model_supported = false;
+      VkPhysicalDeviceVulkan12Features vulkan12Features = {};
+      vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+      vulkan12Features.pNext = nullptr;
+      VkPhysicalDeviceFeatures2 features2 = {};
+      features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+      features2.pNext = &vulkan12Features;
+      vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
+      features2.features.robustBufferAccess = false;
 
-			for (auto& extension : extensions) {
-				std::string name(extension.extensionName);
-				if(name == "VK_KHR_vulkan_memory_model") {
-					vulkan_memory_model_supported = true;
-				}
-			}
-
-      VkPhysicalDeviceFeatures features;
-      vkGetPhysicalDeviceFeatures(phsyicalDevice, &features);
-      features.robustBufferAccess = false;
+      std::cout << "Buffer device address supported: " <<  vulkan12Features.bufferDeviceAddress << "\n";
 
 			// Define device info
 			std::vector<const char*> enabledExtensions { };
-
 			VkDeviceCreateInfo deviceCreateInfo;
-			if(vulkan_memory_model_supported) {
-				deviceCreateInfo = {
+			deviceCreateInfo = {
 					VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-					new VkPhysicalDeviceVulkanMemoryModelFeaturesKHR {
-						VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR,
-						nullptr,
-						true,
-						true,
-					},
+          &vulkan12Features,
 					VkDeviceCreateFlags {},
 					1,
 					queues.data(),
@@ -279,22 +259,8 @@ namespace easyvk {
 					nullptr,
 					(uint32_t)enabledExtensions.size(),
 					enabledExtensions.data(),
-					&features
-				};
-			}
-			else {
-				deviceCreateInfo = {
-					VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-					nullptr,
-					VkDeviceCreateFlags{},
-					1,
-					queues.data(),
-					0,
-					nullptr,
-					(uint32_t)enabledExtensions.size(),
-					enabledExtensions.data()
-				};
-			}
+					&features2.features
+			};
 
 			// Create device
 			vkCheck(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device));
@@ -341,25 +307,32 @@ namespace easyvk {
 	}
 
 	// Create new buffer
-	VkBuffer getNewBuffer(easyvk::Device &_device, uint32_t size) {
+	VkBuffer getNewBuffer(easyvk::Device &_device, uint32_t size, bool deviceAddr) {
+    VkBufferUsageFlags flags = VK_BUFFER_USAGE_STORAGe_BUFFER_BIT;
+    if (deviceAddr) 
+      flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		VkBuffer newBuffer;
 		vkCheck(vkCreateBuffer(_device.device, new VkBufferCreateInfo {
 			VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			nullptr,
 			VkBufferCreateFlags {},
 			size,
-			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT }, nullptr, &newBuffer));
+			flags }, nullptr, &newBuffer));
 		return newBuffer;
 	}
 
-	Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) :
+	Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize, bool deviceAddr) :
 		device(_device),
-		buffer(getNewBuffer(_device, numElements * elementSize)),
+		buffer(getNewBuffer(_device, numElements * elementSize, deviceAddr)),
 		_numElements(numElements),
 		_elementSize(elementSize)
 		{
             // Allocate and map memory to new buffer
-	        auto memId = _device.selectMemory(buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+          VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+          if (deviceAddr) {
+            flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+          }
+	        auto memId = _device.selectMemory(buffer, flags);
 
             VkMemoryRequirements memReqs;
             vkGetBufferMemoryRequirements(device.device, buffer, &memReqs);
@@ -383,6 +356,16 @@ namespace easyvk {
 		vkFreeMemory(device.device, memory, nullptr);
 		vkDestroyBuffer(device.device, buffer, nullptr);
 	}
+
+  uint64_t Buffer::device_addr() {
+    VkBufferDeviceAddressInfo info = {
+      VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+      nullptr,
+      buffer
+    };
+    VkDeviceSize addr = vkGetBufferDeviceAddress(device.device, &info);
+    return addr;
+  }
 
 	// Read spv shader files
 	std::vector<uint32_t> read_spirv(const char* filename) {

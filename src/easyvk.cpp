@@ -308,7 +308,7 @@ namespace easyvk {
 
 	// Create new buffer
 	VkBuffer getNewBuffer(easyvk::Device &_device, uint32_t size, bool deviceAddr) {
-    VkBufferUsageFlags flags = VK_BUFFER_USAGE_STORAGe_BUFFER_BIT;
+    VkBufferUsageFlags flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     if (deviceAddr) 
       flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		VkBuffer newBuffer;
@@ -321,6 +321,9 @@ namespace easyvk {
 		return newBuffer;
 	}
 
+  Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) :
+    Buffer::Buffer(_device, numElements, elementSize, false) {}
+
 	Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize, bool deviceAddr) :
 		device(_device),
 		buffer(getNewBuffer(_device, numElements * elementSize, deviceAddr)),
@@ -328,18 +331,21 @@ namespace easyvk {
 		_elementSize(elementSize)
 		{
             // Allocate and map memory to new buffer
-          VkMemoryPropertyFlags flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-          if (deviceAddr) {
-            flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-          }
-	        auto memId = _device.selectMemory(buffer, flags);
+	          auto memId = _device.selectMemory(buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
             VkMemoryRequirements memReqs;
             vkGetBufferMemoryRequirements(device.device, buffer, &memReqs);
 
+            VkMemoryAllocateFlagsInfo memAllocInfo = {
+              VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+              nullptr,
+              VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
+              0
+            };
+
             vkCheck(vkAllocateMemory(_device.device, new VkMemoryAllocateInfo {
                 VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-                nullptr,
+                &memAllocInfo,
                 memReqs.size,
                 memId}, nullptr, &memory));
 

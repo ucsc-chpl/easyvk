@@ -83,6 +83,7 @@ namespace easyvk {
 	class Buffer {
 		public:
 			Buffer(Device &device, size_t numElements, size_t elementSize);
+      Buffer(Device &device, size_t numElements, size_t elementSize, bool deviceAddr);
 			VkBuffer buffer;
 
 			// The below load and store implementations use a type template which dictates

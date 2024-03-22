@@ -115,7 +115,7 @@ namespace easyvk {
 			}
 
       /** Returns the device address of this buffer. */
-      uint64_t deviceAddr();
+      uint64_t device_addr();
 
 			void teardown();
 

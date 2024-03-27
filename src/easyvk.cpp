@@ -322,13 +322,14 @@ namespace easyvk {
 	}
 
   Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) :
-    Buffer::Buffer(_device, numElements, elementSize, false) {}
+    Buffer::Buffer(_device, {numElements, elementSize, false, false}) {}
 
-	Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize, bool deviceAddr) :
+	Buffer::Buffer(easyvk::Device &_device, BufferParams params) :
 		device(_device),
-		buffer(getNewBuffer(_device, numElements * elementSize, deviceAddr)),
-		_numElements(numElements),
-		_elementSize(elementSize)
+		buffer(getNewBuffer(_device, params.numElements * params.elementSize, params.deviceAddr)),
+		_numElements(params.numElements),
+		_elementSize(params.elementSize),
+    deviceLocal(params.deviceLocal)
 		{
             // Allocate and map memory to new buffer
 	          auto memId = _device.selectMemory(buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);

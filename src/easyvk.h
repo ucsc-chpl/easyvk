@@ -80,32 +80,50 @@ namespace easyvk {
 	 * verify to be safe. See http://man.opencl.org/scalarDataTypes.html for how OpenCL 
 	 * specifies it's types.
 	 */
+
+  typedef struct BufferParams {
+    size_t numElements;
+    size_t elementSize;
+    bool deviceAddr;
+    bool deviceLocal;
+  } BufferParams;
+
 	class Buffer {
 		public:
 			Buffer(Device &device, size_t numElements, size_t elementSize);
-      Buffer(Device &device, size_t numElements, size_t elementSize, bool deviceAddr);
+      Buffer(Device &device, size_t numElements, size_t elementSize, bool deviceAddr, bool deviceLocal);
+      Buffer(Device &device, BufferParams params);
+
 			VkBuffer buffer;
 
 			// The below load and store implementations use a type template which dictates
-			// how the underlying buffer should be interpreted. 
+			// how the underlying buffer should be interpreted. If the memory is device local,
+      // does nothing.
 			template <typename T>
 			void store(size_t i, T value) {
-				*(reinterpret_cast<T*>(data) + i) = value;
+        if (!deviceLocal) 
+				 *(reinterpret_cast<T*>(data) + i) = value;
 			}
 
+      // If the memory is device local, return 0 representation.
 			template <typename T>
 			T load(size_t i) {
+        if (deviceLocal) {
+          return 0;
+        }
 				return *(reinterpret_cast<T*>(data) + i);
 			}
 
 			/**
-			 * Zero out the memory associated with the buffer.
+			 * Zero out the memory associated with the buffer, if the memory is not device local.
 			*/
 			void clear() {
-				auto buf = static_cast<char *>(data);
-				for (size_t i = 0; i < _numElements * _elementSize; i++) {
-					buf[i] = 0;
-				}
+        if (!deviceLocal) {
+			    auto buf = static_cast<char *>(data);
+				  for (size_t i = 0; i < _numElements * _elementSize; i++) {
+					  buf[i] = 0;
+				  }
+        }
 			}
 
 			/**
@@ -124,9 +142,10 @@ namespace easyvk {
 		private:
 			easyvk::Device &device;
 			VkDeviceMemory memory;
+      bool deviceLocal; // specifies whether the memory can be mapped on the host
 			size_t _numElements;
 			size_t _elementSize;
-            void *data;
+      void *data;
 	};
 
 	/**

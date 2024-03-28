@@ -331,8 +331,15 @@ namespace easyvk {
 		_elementSize(params.elementSize),
     deviceLocal(params.deviceLocal)
 		{
+
+            VkMemoryPropertyFlagBits flagBits;
+            if (deviceLocal) {
+              flagBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            } else {
+              flagBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            }
             // Allocate and map memory to new buffer
-	          auto memId = _device.selectMemory(buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+	          auto memId = _device.selectMemory(buffer, flagBits);
 
             VkMemoryRequirements memReqs;
             vkGetBufferMemoryRequirements(device.device, buffer, &memReqs);
@@ -353,13 +360,17 @@ namespace easyvk {
             vkCheck(vkBindBufferMemory(_device.device, buffer, memory, 0));
 
             void* newData = new void*;
-            vkCheck(vkMapMemory(_device.device, memory, 0, VK_WHOLE_SIZE, VkMemoryMapFlags {}, &newData));
-            data = newData;
+            if (!deviceLocal) {
+              vkCheck(vkMapMemory(_device.device, memory, 0, VK_WHOLE_SIZE, VkMemoryMapFlags {}, &newData));
+              data = newData;
+            }
 		}
 
 
 	void Buffer::teardown() {
-		vkUnmapMemory(device.device, memory);
+    if (!deviceLocal) {
+		  vkUnmapMemory(device.device, memory);
+    }
 		vkFreeMemory(device.device, memory, nullptr);
 		vkDestroyBuffer(device.device, buffer, nullptr);
 	}

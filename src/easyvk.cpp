@@ -336,7 +336,7 @@ namespace easyvk {
             if (deviceLocal) {
               flagBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             } else {
-              flagBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+              flagBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
             }
             // Allocate and map memory to new buffer
 	          auto memId = _device.selectMemory(buffer, flagBits);

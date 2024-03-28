@@ -24,142 +24,154 @@
 
 #include <vulkan/vulkan.h>
 #ifdef __ANDROID__
-	#include <android/log.h>
+#include <android/log.h>
 #endif
 
-namespace easyvk {
+namespace easyvk
+{
 
-	const uint32_t push_constant_size_bytes = 20;
+  const uint32_t push_constant_size_bytes = 20;
 
-	class Device;
-	class Buffer;
+  class Device;
+  class Buffer;
 
-	class Instance {
-		public:
-			Instance(bool = false);
-			std::vector<VkPhysicalDevice> physicalDevices();
-			void teardown();
-		private:
-			bool enableValidationLayers;
-			VkInstance instance;
-			VkDebugReportCallbackEXT debugReportCallback;
-	};
+  class Instance
+  {
+  public:
+    Instance(bool = false);
+    std::vector<VkPhysicalDevice> physicalDevices();
+    void teardown();
 
-	class Device {
-		public:
-			Device(Instance &_instance, VkPhysicalDevice _physicalDevice);
-			VkDevice device;
-			VkPhysicalDeviceProperties properties;
-			uint32_t selectMemory(VkBuffer buffer, VkMemoryPropertyFlags flags);
-			uint32_t computeFamilyId = uint32_t(-1);
-      		uint32_t subgroupSize();
-			VkQueue computeQueue; 
-			void teardown();
-		private:
-			Instance &instance;
-			VkPhysicalDevice physicalDevice;
-	};
+  private:
+    bool enableValidationLayers;
+    VkInstance instance;
+    VkDebugReportCallbackEXT debugReportCallback;
+  };
 
-	/**
-	 * @brief Represents a buffer for storing data elements in device memory.
-	 * 
-	 * The Buffer class provides a convenient interface for allocating and interacting with 
-	 * VKBuffers tied to device memory. The buffer is implicitly un-typed and the load/store 
-	 * methods provide templated views to the underlying buffer.
-	 * 
-	 * NOTE: The correctness of this implementation relies on whether the OpenCL data types are 
-	 * interepreted and represented the same way as on the host device. For example, you 
-	 * define a buffer of 256 longs like this:
-	 * 
-	 *     auto myBuf = Buffer(device, 256, sizeof(long));
-	 * 
-	 * And you would use myBuf.store<long>(...) and myBuf.load<long>(...) to write/read to the 
-	 * buffer from the host. However, if your host device has a specification for that what a 
-	 * long is that doesn't match OpenCL's spec, then you are going to get unexpected behavior.
-	 * I think the OpenCL spec should match the spec for most modern devices, but you should 
-	 * verify to be safe. See http://man.opencl.org/scalarDataTypes.html for how OpenCL 
-	 * specifies it's types.
-	 */
-	class Buffer {
-		public:
-			Buffer(Device &device, size_t numElements, size_t elementSize);
-			VkBuffer buffer;
+  class Device
+  {
+  public:
+    Device(Instance &_instance, VkPhysicalDevice _physicalDevice);
+    VkDevice device;
+    VkPhysicalDeviceProperties properties;
+    uint32_t selectMemory(VkBuffer buffer, VkMemoryPropertyFlags flags);
+    uint32_t computeFamilyId = uint32_t(-1);
+    uint32_t subgroupSize();
+    VkQueue computeQueue;
+    void teardown();
 
-			// The below load and store implementations use a type template which dictates
-			// how the underlying buffer should be interpreted. 
-			template <typename T>
-			void store(size_t i, T value) {
-				*(reinterpret_cast<T*>(data) + i) = value;
-			}
+  private:
+    Instance &instance;
+    VkPhysicalDevice physicalDevice;
+  };
 
-			template <typename T>
-			T load(size_t i) {
-				return *(reinterpret_cast<T*>(data) + i);
-			}
+  /**
+   * @brief Represents a buffer for storing data elements in device memory.
+   *
+   * The Buffer class provides a convenient interface for allocating and interacting with
+   * VKBuffers tied to device memory. The buffer is implicitly un-typed and the load/store
+   * methods provide templated views to the underlying buffer.
+   *
+   * NOTE: The correctness of this implementation relies on whether the OpenCL data types are
+   * interepreted and represented the same way as on the host device. For example, you
+   * define a buffer of 256 longs like this:
+   *
+   *     auto myBuf = Buffer(device, 256, sizeof(long));
+   *
+   * And you would use myBuf.store<long>(...) and myBuf.load<long>(...) to write/read to the
+   * buffer from the host. However, if your host device has a specification for that what a
+   * long is that doesn't match OpenCL's spec, then you are going to get unexpected behavior.
+   * I think the OpenCL spec should match the spec for most modern devices, but you should
+   * verify to be safe. See http://man.opencl.org/scalarDataTypes.html for how OpenCL
+   * specifies it's types.
+   */
+  class Buffer
+  {
+  public:
+    Buffer(Device &device, size_t numElements, size_t elementSize);
+    VkBuffer buffer;
 
-			/**
-			 * Zero out the memory associated with the buffer.
-			*/
-			void clear() {
-				auto buf = static_cast<char *>(data);
-				for (size_t i = 0; i < _numElements * _elementSize; i++) {
-					buf[i] = 0;
-				}
-			}
+    // The below load and store implementations use a type template which dictates
+    // how the underlying buffer should be interpreted.
+    template <typename T>
+    void store(size_t i, T value)
+    {
+      *(reinterpret_cast<T *>(data) + i) = value;
+    }
 
-			/**
-			 * Returns the total size of the underlying buffer (in bytes).
-			*/
-			size_t size() const {
-				return _numElements * _elementSize;
-			}
+    template <typename T>
+    T load(size_t i)
+    {
+      return *(reinterpret_cast<T *>(data) + i);
+    }
 
-			void teardown();
+    /**
+     * Zero out the memory associated with the buffer.
+     */
+    void clear()
+    {
+      auto buf = static_cast<char *>(data);
+      for (size_t i = 0; i < _numElements * _elementSize; i++)
+      {
+        buf[i] = 0;
+      }
+    }
 
+    /**
+     * Returns the total size of the underlying buffer (in bytes).
+     */
+    size_t size() const
+    {
+      return _numElements * _elementSize;
+    }
 
-		private:
-			easyvk::Device &device;
-			VkDeviceMemory memory;
-			size_t _numElements;
-			size_t _elementSize;
-            void *data;
-	};
+    void teardown();
 
-	/**
-	 * A program consists of shader code and the buffers/inputs to the shader
-	 * Buffers should be passed in according to their argument order in the shader.
-	 * Workgroup memory buffers are indexed from 0.
-	 */
-	class Program {
-		public:
-			Program(Device &_device, const char* filepath, std::vector<easyvk::Buffer> &buffers);
-			Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<easyvk::Buffer> &buffers);
-			void initialize(const char* entry_point);
-			void run();
-			float runWithDispatchTiming();
-			void setWorkgroups(uint32_t _numWorkgroups);
-			void setWorkgroupSize(uint32_t _workgroupSize);
-			void setWorkgroupMemoryLength(uint32_t length, uint32_t index);
-			void teardown();
-		private:
-			std::vector<easyvk::Buffer> &buffers;
-			std::map<uint32_t, uint32_t> workgroupMemoryLengths;
-			VkShaderModule shaderModule;
-			easyvk::Device &device;
-			VkDescriptorSetLayout descriptorSetLayout;
-			VkDescriptorPool descriptorPool;
-			VkDescriptorSet descriptorSet;
-			std::vector<VkWriteDescriptorSet> writeDescriptorSets;
-			std::vector<VkDescriptorBufferInfo> bufferInfos;
-			VkPipelineLayout pipelineLayout;
-			VkPipeline pipeline;
-			uint32_t numWorkgroups;
-			uint32_t workgroupSize;
-			VkFence fence;
-			VkCommandBuffer commandBuffer;
-			VkCommandPool commandPool;
-			VkQueryPool timestampQueryPool;
-	};
+  private:
+    easyvk::Device &device;
+    VkDeviceMemory memory;
+    size_t _numElements;
+    size_t _elementSize;
+    void *data;
+  };
 
-	const char* vkDeviceType(VkPhysicalDeviceType type);
+  /**
+   * A program consists of shader code and the buffers/inputs to the shader
+   * Buffers should be passed in according to their argument order in the shader.
+   * Workgroup memory buffers are indexed from 0.
+   */
+  class Program
+  {
+  public:
+    Program(Device &_device, const char *filepath, std::vector<easyvk::Buffer> &buffers);
+    Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<easyvk::Buffer> &buffers);
+    void initialize(const char *entry_point);
+    void run();
+    float runWithDispatchTiming();
+    void setWorkgroups(uint32_t _numWorkgroups);
+    void setWorkgroupSize(uint32_t _workgroupSize);
+    void setWorkgroupMemoryLength(uint32_t length, uint32_t index);
+    void teardown();
+
+  private:
+    std::vector<easyvk::Buffer> &buffers;
+    std::map<uint32_t, uint32_t> workgroupMemoryLengths;
+    VkShaderModule shaderModule;
+    easyvk::Device &device;
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSet descriptorSet;
+    std::vector<VkWriteDescriptorSet> writeDescriptorSets;
+    std::vector<VkDescriptorBufferInfo> bufferInfos;
+    VkPipelineLayout pipelineLayout;
+    VkPipeline pipeline;
+    uint32_t numWorkgroups;
+    uint32_t workgroupSize;
+    VkFence fence;
+    VkCommandBuffer commandBuffer;
+    VkCommandPool commandPool;
+    VkQueryPool timestampQueryPool;
+  };
+
+  const char *vkDeviceType(VkPhysicalDeviceType type);
 }

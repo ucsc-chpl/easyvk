@@ -15,7 +15,6 @@
 */
 
 #include "easyvk.h"
-#include <iostream>
 
 // TODO: extend this to include ios logging lib
 void evk_log(const char *fmt, ...)
@@ -164,7 +163,6 @@ namespace easyvk
   {
     std::ofstream debugFile("vk-output.txt");
     debugFile << "[Vulkan]:" << pLayerPrefix << ": " << pMessage << "\n";
-    std::cout << "[Vulkan]:" << pLayerPrefix << ": " << pMessage << "\n";
     debugFile.close();
     return VK_FALSE;
   }
@@ -318,8 +316,6 @@ namespace easyvk
     features2.pNext = &vulkan12Features;
     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
     features2.features.robustBufferAccess = false;
-
-    std::cout << "Buffer device address supported: " << vulkan12Features.bufferDeviceAddress << "\n";
 
     // Define device info
     std::vector<const char *> enabledExtensions{};

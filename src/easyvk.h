@@ -98,7 +98,6 @@ namespace easyvk
   {
   public:
     Buffer(Device &device, size_t numElements, size_t elementSize);
-    Buffer(Device &device, size_t numElements, size_t elementSize, bool deviceAddr, bool deviceLocal);
     Buffer(Device &device, BufferParams params);
 
     VkBuffer buffer;

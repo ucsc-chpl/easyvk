@@ -176,7 +176,6 @@ namespace easyvk
     {
       enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
       enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-      // enabledExtensions.push_back("VK_KHR_shader_non_semantic_info");
     }
 #ifdef __APPLE__
     enabledExtensions.push_back("VK_KHR_portability_enumeration");
@@ -190,7 +189,7 @@ namespace easyvk
         0,
         "Heterogeneous Programming Group",
         0,
-        VK_API_VERSION_1_1};
+        VK_API_VERSION_1_3};
 
 #ifdef __APPLE__
     VkInstanceCreateFlags instanceCreateFlags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -229,13 +228,6 @@ namespace easyvk
       {
       }
     }
-
-    // List out instance's enabled extensions
-    uint32_t count;
-    vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
-    std::vector<VkExtensionProperties> extensions(count);
-    vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data());
-    std::set<std::string> results;
 
     // Print out vulkan's instance version
     uint32_t version;
@@ -316,57 +308,29 @@ namespace easyvk
         1,
         &priority};
 
-    // Get device's enabled extensions
-    uint32_t count;
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, nullptr);
-    std::vector<VkExtensionProperties> extensions(count);
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &count, extensions.data());
-    bool vulkan_memory_model_supported = false;
-
-    for (auto &extension : extensions)
-    {
-      std::string name(extension.extensionName);
-      if (name == "VK_KHR_vulkan_memory_model")
-      {
-        vulkan_memory_model_supported = true;
-      }
-    }
+    VkPhysicalDeviceVulkan12Features vulkan12Features = {};
+    vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan12Features.pNext = nullptr;
+    VkPhysicalDeviceFeatures2 features2 = {};
+    features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features2.pNext = &vulkan12Features;
+    vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
+    features2.features.robustBufferAccess = false;
 
     // Define device info
     std::vector<const char *> enabledExtensions{};
-
     VkDeviceCreateInfo deviceCreateInfo;
-    if (vulkan_memory_model_supported)
-    {
-      deviceCreateInfo = {
-          VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-          new VkPhysicalDeviceVulkanMemoryModelFeaturesKHR{
-              VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR,
-              nullptr,
-              true,
-              true,
-          },
-          VkDeviceCreateFlags{},
-          1,
-          queues.data(),
-          0,
-          nullptr,
-          (uint32_t)enabledExtensions.size(),
-          enabledExtensions.data()};
-    }
-    else
-    {
-      deviceCreateInfo = {
-          VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-          nullptr,
-          VkDeviceCreateFlags{},
-          1,
-          queues.data(),
-          0,
-          nullptr,
-          (uint32_t)enabledExtensions.size(),
-          enabledExtensions.data()};
-    }
+    deviceCreateInfo = {
+        VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        &vulkan12Features,
+        VkDeviceCreateFlags{},
+        1,
+        queues.data(),
+        0,
+        nullptr,
+        (uint32_t)enabledExtensions.size(),
+        enabledExtensions.data(),
+        &features2.features};
 
     // Create device
     vkCheck(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device));
@@ -416,38 +380,76 @@ namespace easyvk
   }
 
   // Create new buffer
-  VkBuffer getNewBuffer(easyvk::Device &_device, uint32_t size)
+  VkBuffer getNewBuffer(easyvk::Device &_device, uint32_t size, bool deviceAddr)
   {
+    VkBufferUsageFlags flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    if (deviceAddr)
+      flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     VkBuffer newBuffer;
-    vkCheck(vkCreateBuffer(_device.device, new VkBufferCreateInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, VkBufferCreateFlags{}, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT}, nullptr, &newBuffer));
+    vkCheck(vkCreateBuffer(_device.device, new VkBufferCreateInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, VkBufferCreateFlags{}, size, flags}, nullptr, &newBuffer));
     return newBuffer;
   }
 
-  Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) : device(_device),
-                                                                                    buffer(getNewBuffer(_device, numElements * elementSize)),
-                                                                                    _numElements(numElements),
-                                                                                    _elementSize(elementSize)
+  Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) : Buffer::Buffer(_device, {numElements, elementSize, false, false}) {}
+
+  Buffer::Buffer(easyvk::Device &_device, BufferParams params) : device(_device),
+                                                                 buffer(getNewBuffer(_device, params.numElements * params.elementSize, params.deviceAddr)),
+                                                                 _numElements(params.numElements),
+                                                                 _elementSize(params.elementSize),
+                                                                 deviceLocal(params.deviceLocal)
   {
+
+    VkMemoryPropertyFlagBits flagBits;
+    if (deviceLocal)
+    {
+      flagBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+    else
+    {
+      flagBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    }
     // Allocate and map memory to new buffer
-    auto memId = _device.selectMemory(buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    auto memId = _device.selectMemory(buffer, flagBits);
 
     VkMemoryRequirements memReqs;
     vkGetBufferMemoryRequirements(device.device, buffer, &memReqs);
 
-    vkCheck(vkAllocateMemory(_device.device, new VkMemoryAllocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, nullptr, memReqs.size, memId}, nullptr, &memory));
+    VkMemoryAllocateFlagsInfo memAllocInfo = {
+        VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+        nullptr,
+        VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
+        0};
+
+    vkCheck(vkAllocateMemory(_device.device, new VkMemoryAllocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &memAllocInfo, memReqs.size, memId}, nullptr, &memory));
 
     vkCheck(vkBindBufferMemory(_device.device, buffer, memory, 0));
 
     void *newData = new void *;
-    vkCheck(vkMapMemory(_device.device, memory, 0, VK_WHOLE_SIZE, VkMemoryMapFlags{}, &newData));
-    data = newData;
+    if (!deviceLocal)
+    {
+      vkCheck(vkMapMemory(_device.device, memory, 0, VK_WHOLE_SIZE, VkMemoryMapFlags{}, &newData));
+      data = newData;
+    }
   }
 
   void Buffer::teardown()
   {
-    vkUnmapMemory(device.device, memory);
+    if (!deviceLocal)
+    {
+      vkUnmapMemory(device.device, memory);
+    }
     vkFreeMemory(device.device, memory, nullptr);
     vkDestroyBuffer(device.device, buffer, nullptr);
+  }
+
+  uint64_t Buffer::device_addr()
+  {
+    VkBufferDeviceAddressInfo info = {
+        VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+        nullptr,
+        buffer};
+    VkDeviceSize addr = vkGetBufferDeviceAddress(device.device, &info);
+    return addr;
   }
 
   // Read spv shader files

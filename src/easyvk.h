@@ -22,8 +22,7 @@
 #include <vector>
 #include <map>
 
-#define VOLK_IMPLEMENTATION
-#include "volk.h"
+#include <vulkan/vulkan.h>
 #ifdef __ANDROID__
 #include <android/log.h>
 #endif

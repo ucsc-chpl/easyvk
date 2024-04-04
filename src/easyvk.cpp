@@ -172,6 +172,7 @@ namespace easyvk
     enableValidationLayers = _enableValidationLayers;
     std::vector<const char *> enabledLayers;
     std::vector<const char *> enabledExtensions;
+    vkCheck(volkInitialize());
     if (enableValidationLayers)
     {
       enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
@@ -210,6 +211,7 @@ namespace easyvk
 
     // Create instance
     vkCheck(vkCreateInstance(&createInfo, nullptr, &instance));
+    volkLoadInstance(instance);
 
     if (enableValidationLayers)
     {

@@ -318,7 +318,7 @@ namespace easyvk
     features2.features.robustBufferAccess = false;
 
     // Define device info
-    std::vector<const char *> enabledExtensions{};
+    std::vector<const char *> enabledExtensions{VK_AMD_SHADER_INFO_EXTENSION_NAME};
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -783,6 +783,21 @@ namespace easyvk
         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT));
 
     return (queryResults[1] - queryResults[0]) * device.properties.limits.timestampPeriod;
+  }
+
+  void Program::printAMDShaderStats()
+  {
+    VkShaderStatisticsInfoAMD statInfo = {};
+    size_t infoSize = sizeof(statInfo);
+    vkCheck(vkGetShaderInfoAMD(
+      device.device,
+      pipeline,
+      VK_SHADER_STAGE_COMPUTE_BIT,
+      VK_SHADER_INFO_TYPE_STATISTICS_AMD,
+      &infoSize,
+      &statInfo));
+    evk_log("Physical Vgprs: %d, Compiler Vgprs: %d, Used Vgprs: %d\n", statInfo.numPhysicalVgprs, statInfo.numAvailableVgprs, statInfo.resourceUsage.numUsedVgprs);
+    evk_log("Physical Sgprs: %d, Compiler Sgprs: %d, Used Sgprs: %d\n", statInfo.numPhysicalSgprs, statInfo.numAvailableSgprs, statInfo.resourceUsage.numUsedSgprs);
   }
 
   void Program::setWorkgroups(uint32_t _numWorkgroups)

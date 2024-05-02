@@ -308,9 +308,16 @@ namespace easyvk
         1,
         &priority};
 
+    // enable pipeline executable properties reporting
+    VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipelineProperties = {};
+    pipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR;
+    pipelineProperties.pNext = nullptr;
+
+    // mostly for enabling buffer device addresses
     VkPhysicalDeviceVulkan12Features vulkan12Features = {};
     vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    vulkan12Features.pNext = nullptr;
+    vulkan12Features.pNext = &pipelineProperties;;
+
     VkPhysicalDeviceFeatures2 features2 = {};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features2.pNext = &vulkan12Features;
@@ -318,7 +325,7 @@ namespace easyvk
     features2.features.robustBufferAccess = false;
 
     // Define device info
-    std::vector<const char *> enabledExtensions{VK_AMD_SHADER_INFO_EXTENSION_NAME};
+    std::vector<const char *> enabledExtensions{VK_AMD_SHADER_INFO_EXTENSION_NAME, VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME};
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -800,6 +807,20 @@ namespace easyvk
       &statInfo));
     evk_log("Physical Vgprs: %d, Compiler Vgprs: %d, Used Vgprs: %d\n", statInfo.numPhysicalVgprs, statInfo.numAvailableVgprs, statInfo.resourceUsage.numUsedVgprs);
     evk_log("Physical Sgprs: %d, Compiler Sgprs: %d, Used Sgprs: %d\n", statInfo.numPhysicalSgprs, statInfo.numAvailableSgprs, statInfo.resourceUsage.numUsedSgprs);
+  }
+
+  void Program::getShaderStats() {
+    VkPipelineInfoKHR pipelineInfo = {};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR;
+    pipelineInfo.pNext = nullptr;
+    pipelineInfo.pipeline = pipeline;
+    uint32_t execCount;
+    vkCheck(vkGetPipelineExecutablePropertiesKHR(
+      device.device,
+      pipelineInfo,
+      &execCount,
+      nullptr));
+    evk_log("Number of executables: %d\n", execCount);
   }
 
   void Program::setWorkgroups(uint32_t _numWorkgroups)

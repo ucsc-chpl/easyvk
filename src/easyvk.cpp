@@ -308,9 +308,15 @@ namespace easyvk
         1,
         &priority};
 
+    // enable pipeline executable properties reporting
+    VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipelineProperties = {};
+    pipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR;
+    pipelineProperties.pNext = nullptr;
+
+    // mostly for enabling buffer device addresses
     VkPhysicalDeviceVulkan12Features vulkan12Features = {};
     vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    vulkan12Features.pNext = nullptr;
+    vulkan12Features.pNext = &pipelineProperties;
     VkPhysicalDeviceFeatures2 features2 = {};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features2.pNext = &vulkan12Features;
@@ -318,7 +324,7 @@ namespace easyvk
     features2.features.robustBufferAccess = false;
 
     // Define device info
-    std::vector<const char *> enabledExtensions{};
+    std::vector<const char *> enabledExtensions{VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME};
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -664,6 +670,47 @@ namespace easyvk
             2},
         VK_NULL_HANDLE,
         &timestampQueryPool));
+  }
+
+    void Program::getShaderStats() {
+
+    VkPipelineInfoKHR pipelineInfo = {VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR, nullptr, pipeline};
+    uint32_t execCount = 1;
+    VkPipelineExecutablePropertiesKHR pProperties = {VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_PROPERTIES_KHR};
+    PFN_vkGetPipelineExecutablePropertiesKHR pfnGetPipelineExecutableProperties = (PFN_vkGetPipelineExecutablePropertiesKHR)vkGetDeviceProcAddr(
+    device.device, "vkGetPipelineExecutablePropertiesKHR");
+    vkCheck(pfnGetPipelineExecutableProperties(device.device, &pipelineInfo, &execCount, &pProperties));
+    evk_log("Executable: %s, Description: %s\n", pProperties.name, pProperties.description);
+
+    // we assume there is only one executable (e.g. shader) associated with this pipeline, or at least, the first one is the one we want stats for
+    VkPipelineExecutableInfoKHR pExecutableInfo = {VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR, nullptr, pipeline, 0};
+    PFN_vkGetPipelineExecutableStatisticsKHR pfnGetPipelineExecutableStatistics = (PFN_vkGetPipelineExecutableStatisticsKHR)vkGetDeviceProcAddr(
+    device.device, "vkGetPipelineExecutableStatisticsKHR");
+
+    uint32_t executableCount = 0;
+    // get the count of statistics
+    pfnGetPipelineExecutableStatistics(device.device, &pExecutableInfo, &executableCount, nullptr);
+    std::vector<VkPipelineExecutableStatisticKHR> statistics(executableCount, { VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR });
+    // get the actual statistics
+    pfnGetPipelineExecutableStatistics(device.device, &pExecutableInfo, &executableCount, statistics.data());
+    // Output statistics
+    for (const auto& stat : statistics) {
+	evk_log("Statistic: %s, Description: %s, Value: ", stat.name, stat.description);
+	switch (stat.format) {
+	  case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR:
+	    evk_log("%d\n", stat.value.b32);
+	    break;
+	  case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
+	    evk_log("%ld\n", stat.value.i64);
+	    break;
+	  case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
+	    evk_log("%li\n", stat.value.u64);
+	    break;
+	  case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
+	    evk_log("%f\n", stat.value.f64);
+	    break;
+	}
+    }
   }
 
   void Program::run()

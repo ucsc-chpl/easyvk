@@ -172,6 +172,7 @@ namespace easyvk
     Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<easyvk::Buffer> &buffers);
     void initialize(const char *entry_point);
     void run();
+    void getShaderStats();
     float runWithDispatchTiming();
     void setWorkgroups(uint32_t _numWorkgroups);
     void setWorkgroupSize(uint32_t _workgroupSize);

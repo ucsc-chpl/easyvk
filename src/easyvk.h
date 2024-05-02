@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <fstream>
 #include <set>
+#include <string>
 #include <stdarg.h>
 #include <vector>
 #include <map>
@@ -162,6 +163,13 @@ namespace easyvk
     void *data;
   };
 
+  typedef struct ShaderStatistics {
+    std::string name;
+    std::string description;
+    size_t format; // 0 -> bool, 1 -> int64, 2 -> uint64, 3 -> float64
+    uint64_t value; // may need to cast this to get the right value based on the format
+  } ShaderStatistics;
+
   /**
    * A program consists of shader code and the buffers/inputs to the shader
    * Buffers should be passed in according to their argument order in the shader.
@@ -174,7 +182,7 @@ namespace easyvk
     Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<easyvk::Buffer> &buffers);
     void initialize(const char *entry_point);
     void run();
-    void getShaderStats();
+    std::vector<ShaderStatistics> getShaderStats();
     float runWithDispatchTiming();
     void setWorkgroups(uint32_t _numWorkgroups);
     void setWorkgroupSize(uint32_t _workgroupSize);

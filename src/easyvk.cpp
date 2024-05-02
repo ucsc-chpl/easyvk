@@ -789,7 +789,9 @@ namespace easyvk
   {
     VkShaderStatisticsInfoAMD statInfo = {};
     size_t infoSize = sizeof(statInfo);
-    vkCheck(vkGetShaderInfoAMD(
+    PFN_vkGetShaderInfoAMD pfnGetShaderInfoAMD = (PFN_vkGetShaderInfoAMD)vkGetDeviceProcAddr(
+    device.device, "vkGetShaderInfoAMD");
+    vkCheck(pfnGetShaderInfoAMD(
       device.device,
       pipeline,
       VK_SHADER_STAGE_COMPUTE_BIT,

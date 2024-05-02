@@ -724,16 +724,17 @@ namespace easyvk
         stats.push_back(ShaderStatistics{ stat.name, stat.description, 0, stat.value.b32 });
         break;
       case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
-        stats.push_back(ShaderStatistics{ stat.name, stat.description, 1, stat.value.i64 });
+        stats.push_back(ShaderStatistics{ stat.name, stat.description, 1, (uint64_t) stat.value.i64 });
         break;
       case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
         stats.push_back(ShaderStatistics{ stat.name, stat.description, 2, stat.value.u64 });
         break;
       case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
-        stats.push_back(ShaderStatistics{ stat.name, stat.description, 3, stat.value.f64 });
+        stats.push_back(ShaderStatistics{ stat.name, stat.description, 3, (uint64_t) stat.value.f64 });
         break;
       }
     }
+    return stats;
   }
 
   void Program::run()

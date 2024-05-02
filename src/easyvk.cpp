@@ -15,6 +15,7 @@
 */
 
 #include "easyvk.h"
+#include <string.h>
 
 // TODO: extend this to include ios logging lib
 void evk_log(const char *fmt, ...)

@@ -308,6 +308,14 @@ namespace easyvk
         1,
         &priority};
 
+    uint32_t pPropertyCount;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &pPropertyCount, nullptr);
+    std::vector<VkExtensionProperties> extensions(pPropertyCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &pPropertyCount, extensions.data()); 
+    for (const auto& extension : extensions) {
+      evk_log("Extension: %s\n", extension.extensionName);
+    }
+
     // enable pipeline executable properties reporting
     VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipelineProperties = {};
     pipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR;

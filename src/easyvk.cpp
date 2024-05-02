@@ -308,12 +308,17 @@ namespace easyvk
         1,
         &priority};
 
+    // check for support for AMD Shader stats
     uint32_t pPropertyCount;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &pPropertyCount, nullptr);
     std::vector<VkExtensionProperties> extensions(pPropertyCount);
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &pPropertyCount, extensions.data()); 
+    supportsAMDShaderStats = false;
     for (const auto& extension : extensions) {
-      evk_log("Extension: %s\n", extension.extensionName);
+      if (extension.extensionName == "VK_AMD_shader_info") {
+        supportsAMDShaderStats = true;
+        break;
+      }
     }
 
     // enable pipeline executable properties reporting
@@ -681,6 +686,23 @@ namespace easyvk
   }
 
     void Program::getShaderStats() {
+
+    if (device.supportsAMDShaderStats) {
+      VkShaderStatisticsInfoAMD statInfo = {};
+    size_t infoSize = sizeof(statInfo);
+    PFN_vkGetShaderInfoAMD pfnGetShaderInfoAMD = (PFN_vkGetShaderInfoAMD)vkGetDeviceProcAddr(
+    device.device, "vkGetShaderInfoAMD");
+    vkCheck(pfnGetShaderInfoAMD(
+      device.device,
+      pipeline,
+      VK_SHADER_STAGE_COMPUTE_BIT,
+      VK_SHADER_INFO_TYPE_STATISTICS_AMD,
+      &infoSize,
+      &statInfo));
+    evk_log("Physical Vgprs: %d, Compiler Vgprs: %d, Used Vgprs: %d\n", statInfo.numPhysicalVgprs, statInfo.numAvailableVgprs, statInfo.resourceUsage.numUsedVgprs);
+    evk_log("Physical Sgprs: %d, Compiler Sgprs: %d, Used Sgprs: %d\n", statInfo.numPhysicalSgprs, statInfo.numAvailableSgprs, statInfo.resourceUsage.numUsedSgprs);
+
+    }
 
     VkPipelineInfoKHR pipelineInfo = {VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR, nullptr, pipeline};
     uint32_t execCount = 1;

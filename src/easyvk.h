@@ -58,6 +58,8 @@ namespace easyvk
     uint32_t computeFamilyId = uint32_t(-1);
     uint32_t subgroupSize();
     VkQueue computeQueue;
+    // AMD shader info extension gives more register info than the portable stats extension
+    bool supportsAMDShaderStats;
     void teardown();
 
   private:

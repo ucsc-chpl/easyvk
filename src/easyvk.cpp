@@ -14,6 +14,11 @@
    limitations under the License.
 */
 
+#ifdef __ANDROID__
+#define VOLK_IMPLEMENTATION
+#include "volk.h"
+#endif
+
 #include "easyvk.h"
 
 // TODO: extend this to include ios logging lib
@@ -172,6 +177,9 @@ namespace easyvk
     enableValidationLayers = _enableValidationLayers;
     std::vector<const char *> enabledLayers;
     std::vector<const char *> enabledExtensions;
+#ifdef __ANDROID__
+    vkCheck(volkInitialize());
+#endif
     if (enableValidationLayers)
     {
       enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
@@ -210,6 +218,9 @@ namespace easyvk
 
     // Create instance
     vkCheck(vkCreateInstance(&createInfo, nullptr, &instance));
+#ifdef __ANDROID__
+    volkLoadInstance(instance);
+#endif
 
     if (enableValidationLayers)
     {

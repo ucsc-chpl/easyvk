@@ -20,6 +20,7 @@
 #endif
 
 #include "easyvk.h"
+#include <string.h>
 
 // TODO: extend this to include ios logging lib
 void evk_log(const char *fmt, ...)
@@ -319,9 +320,28 @@ namespace easyvk
         1,
         &priority};
 
+    // check for support for AMD Shader stats
+    uint32_t pPropertyCount;
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &pPropertyCount, nullptr);
+    std::vector<VkExtensionProperties> extensions(pPropertyCount);
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &pPropertyCount, extensions.data()); 
+    supportsAMDShaderStats = false;
+    for (const auto& extension : extensions) {
+      if (strcmp(extension.extensionName, "VK_AMD_shader_info") == 0) {
+        supportsAMDShaderStats = true;
+        break;
+      }
+    }
+
+    // enable pipeline executable properties reporting
+    VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipelineProperties = {};
+    pipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR;
+    pipelineProperties.pNext = nullptr;
+
+    // mostly for enabling buffer device addresses
     VkPhysicalDeviceVulkan12Features vulkan12Features = {};
     vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    vulkan12Features.pNext = nullptr;
+    vulkan12Features.pNext = &pipelineProperties;
     VkPhysicalDeviceFeatures2 features2 = {};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features2.pNext = &vulkan12Features;
@@ -329,7 +349,8 @@ namespace easyvk
     features2.features.robustBufferAccess = false;
 
     // Define device info
-    std::vector<const char *> enabledExtensions{};
+    std::vector<const char *> enabledExtensions{VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME};
+    if (supportsAMDShaderStats) enabledExtensions.push_back(VK_AMD_SHADER_INFO_EXTENSION_NAME);
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -675,6 +696,57 @@ namespace easyvk
             2},
         VK_NULL_HANDLE,
         &timestampQueryPool));
+  }
+
+  std::vector<ShaderStatistics> Program::getShaderStats() {
+    std::vector<ShaderStatistics> stats;
+    if (device.supportsAMDShaderStats) {
+      VkShaderStatisticsInfoAMD statInfo = {};
+      size_t infoSize = sizeof(statInfo);
+      PFN_vkGetShaderInfoAMD pfnGetShaderInfoAMD = (PFN_vkGetShaderInfoAMD)vkGetDeviceProcAddr(
+        device.device, "vkGetShaderInfoAMD");
+      vkCheck(pfnGetShaderInfoAMD(
+        device.device,
+        pipeline,
+        VK_SHADER_STAGE_COMPUTE_BIT,
+        VK_SHADER_INFO_TYPE_STATISTICS_AMD,
+        &infoSize,
+        &statInfo));
+      stats.push_back(ShaderStatistics{ "Physical Vgprs", "Physical vector general purpose registers", 2, statInfo.numPhysicalVgprs });
+      stats.push_back(ShaderStatistics{ "Physical Sgprs", "Physical scalar general purpose registers", 2, statInfo.numPhysicalSgprs });
+      stats.push_back(ShaderStatistics{ "Compiler Vgprs", "Compiler vector general purpose registers", 2, statInfo.numAvailableVgprs });
+      stats.push_back(ShaderStatistics{ "Compiler Sgprs", "Compiler scalar general purpose registers", 2, statInfo.numAvailableSgprs });
+    }
+
+    // we assume there is only one executable (e.g. shader) associated with this pipeline, or at least, the first one is the one we want stats for
+    VkPipelineExecutableInfoKHR pExecutableInfo = { VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR, nullptr, pipeline, 0 };
+    PFN_vkGetPipelineExecutableStatisticsKHR pfnGetPipelineExecutableStatistics = (PFN_vkGetPipelineExecutableStatisticsKHR)vkGetDeviceProcAddr(
+      device.device, "vkGetPipelineExecutableStatisticsKHR");
+
+    uint32_t executableCount = 0;
+    // get the count of statistics
+    pfnGetPipelineExecutableStatistics(device.device, &pExecutableInfo, &executableCount, nullptr);
+    std::vector<VkPipelineExecutableStatisticKHR> statistics(executableCount, { VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR });
+    // get the actual statistics
+    pfnGetPipelineExecutableStatistics(device.device, &pExecutableInfo, &executableCount, statistics.data());
+    // Output statistics
+    for (const auto& stat : statistics) {
+      switch (stat.format) {
+      case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR:
+        stats.push_back(ShaderStatistics{ stat.name, stat.description, 0, stat.value.b32 });
+        break;
+      case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
+        stats.push_back(ShaderStatistics{ stat.name, stat.description, 1, (uint64_t) stat.value.i64 });
+        break;
+      case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
+        stats.push_back(ShaderStatistics{ stat.name, stat.description, 2, stat.value.u64 });
+        break;
+      case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
+        stats.push_back(ShaderStatistics{ stat.name, stat.description, 3, (uint64_t) stat.value.f64 });
+        break;
+      }
+    }
+    return stats;
   }
 
   void Program::run()

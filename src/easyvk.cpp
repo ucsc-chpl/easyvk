@@ -333,10 +333,15 @@ namespace easyvk
       }
     }
 
+    // enable support for computeFullSubgroups
+    VkPhysicalDeviceVulkan13Features vulkan13Features = {};
+    vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    vulkan13Features.pNext = nullptr; 
+
     // enable pipeline executable properties reporting
     VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipelineProperties = {};
     pipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR;
-    pipelineProperties.pNext = nullptr;
+    pipelineProperties.pNext = &vulkan13Features;
 
     // mostly for enabling buffer device addresses
     VkPhysicalDeviceVulkan12Features vulkan12Features = {};
@@ -636,7 +641,7 @@ namespace easyvk
     VkPipelineShaderStageCreateInfo stageCI{
         VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         nullptr,
-        VkPipelineShaderStageCreateFlags{},
+        VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT,
         VK_SHADER_STAGE_COMPUTE_BIT,
         shaderModule,
         entry_point,

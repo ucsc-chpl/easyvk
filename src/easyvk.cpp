@@ -21,6 +21,7 @@
 
 #include "easyvk.h"
 #include <string.h>
+#include <iostream> // TODO: get tid of this
 
 // TODO: extend this to include ios logging lib
 void evk_log(const char *fmt, ...)
@@ -416,78 +417,186 @@ namespace easyvk
     vkDestroyDevice(device, nullptr);
   }
 
-  // Create new buffer
-  VkBuffer getNewBuffer(easyvk::Device &_device, uint32_t size, bool deviceAddr)
+void Buffer::createBuffer(easyvk::Device &_device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& _buffer, VkDeviceMemory& _bufferMemory) 
   {
-    VkBufferUsageFlags flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    if (deviceAddr)
-      flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    VkBuffer newBuffer;
-    vkCheck(vkCreateBuffer(_device.device, new VkBufferCreateInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, nullptr, VkBufferCreateFlags{}, size, flags}, nullptr, &newBuffer));
-    return newBuffer;
+    VkBufferCreateInfo bufferInfo{ };
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+
+    vkCreateBuffer(_device.device, &bufferInfo, nullptr, &_buffer); // surround with vkcheck
+
+    VkMemoryRequirements memReqs;
+    vkGetBufferMemoryRequirements(_device.device, _buffer, &memReqs);
+    VkMemoryAllocateInfo allocInfo{ };
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memReqs.size;
+    allocInfo.memoryTypeIndex = _device.selectMemory(_buffer, properties); // could be _device.device
+    
+
+    // Allocate and map memory to new buffer
+
+    vkCheck(vkAllocateMemory(_device.device, &allocInfo, nullptr, &_bufferMemory));
+
+    vkCheck(vkBindBufferMemory(_device.device, _buffer, _bufferMemory, 0));    
   }
 
-  Buffer::Buffer(easyvk::Device &_device, size_t numElements, size_t elementSize) : Buffer::Buffer(_device, {numElements, elementSize, false, false}) {}
+void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) 
+  {
+
+    VkCommandPool commandPool; // It seems ineffecient possibly to create a commandPool eveyrtime we need to copy a buffer, maybe create a commanPool field in Buffer
+                               // and we'll use that command pool for copy commands
+
+    VkCommandPoolCreateInfo commandPoolCreateInfo{
+        VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        nullptr,
+        VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        _device.computeFamilyId};
+
+    // Create command pool from compute type queue, and allocate it from 
+    vkCheck(vkCreateCommandPool(_device.device, &commandPoolCreateInfo, nullptr, &commandPool));
+
+    auto queue = _device.computeQueue;
+    
+
+    VkCommandBufferAllocateInfo allocInfo{ }; 
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1; 
+    
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers( _device.device, &allocInfo, &commandBuffer ); 
+    
+    VkCommandBufferBeginInfo beginInfo{ }; 
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO; 
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT; 
+    vkBeginCommandBuffer( commandBuffer, &beginInfo ); 
+    
+    VkBufferCopy copyRegion{ }; 
+    copyRegion.size = size; 
+    
+    
+    // This function non-deterministically segfaults
+    vkCmdCopyBuffer ( commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion );
+    
+    vkEndCommandBuffer( commandBuffer );
+    
+    VkSubmitInfo submitInfo{ };
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    
+    vkQueueSubmit( queue, 1, &submitInfo, VK_NULL_HANDLE );
+    std::cout << "on wheat bread.\n";
+    vkQueueWaitIdle( queue );
+    vkFreeCommandBuffers( _device.device, commandPool, 1, &commandBuffer );
+    
+  }
+
+  // Create new buffer
+  VkBuffer Buffer::getNewBuffer(easyvk::Device &_device, void* HostBuffer, uint32_t size)
+  {
+    VkDeviceSize bufferSize = size;
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+
+
+    VkBuffer DeviceLocalBuffer;
+    VkDeviceMemory DeviceBufferMemory;
+
+
+    std::cout << "butter\n";
+    createBuffer( _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory );
+    std::cout << "and jam\n";
+    void *data;
+    vkCheck( vkMapMemory(_device.device, stagingBufferMemory, 0, bufferSize, 0, &data) );  
+    memcpy( data, HostBuffer, bufferSize * sizeof(uint)); // HostBuffer is already HostBuffer.data() I believe
+    vkUnmapMemory( _device.device, stagingBufferMemory );
+    
+    
+    
+    createBuffer( _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, DeviceLocalBuffer, DeviceBufferMemory );
+    CopyBuffer( _device, stagingBuffer, DeviceLocalBuffer, bufferSize * sizeof(uint));
+    
+
+    vkDestroyBuffer( _device.device, stagingBuffer, nullptr ); 
+    vkFreeMemory( _device.device, stagingBufferMemory, nullptr );
+    memory = DeviceBufferMemory;
+    
+    return DeviceLocalBuffer;
+  }
+
+  void Buffer::load(easyvk::Device &_device, std::vector<uint> &HostBuffer, uint32_t size)
+  {
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    VkDeviceSize bufferSize = size;
+
+    createBuffer(_device, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      stagingBuffer, stagingBufferMemory);
+
+
+    CopyBuffer(_device, buffer, stagingBuffer, size * sizeof(uint));
+
+    void* bufferData = nullptr;
+    vkMapMemory(_device.device, stagingBufferMemory, 0, size, 0, &bufferData);
+    
+    //HostBuffer.insert(HostBuffer.begin(), (uint*)bufferData, (uint*)bufferData + size);
+
+    memcpy(HostBuffer.data(), bufferData, bufferSize * sizeof(uint));
+
+    //std::copy((uint*)bufferData, (uint*)bufferData + size, std::back_inserter(HostBuffer));
+    vkUnmapMemory(_device.device, stagingBufferMemory);
+
+    vkDestroyBuffer(_device.device, stagingBuffer, nullptr);
+    vkFreeMemory(_device.device, stagingBufferMemory, nullptr);
+  }
+
+
+  
+  Buffer::Buffer(easyvk::Device &_device, void* HostBuffer, size_t numElements, size_t elementSize) : Buffer::Buffer(_device, {HostBuffer, numElements, elementSize, true}) {} 
 
   Buffer::Buffer(easyvk::Device &_device, BufferParams params) : device(_device),
-                                                                 buffer(getNewBuffer(_device, params.numElements * params.elementSize, params.deviceAddr)),
+                                                                 buffer(Buffer::getNewBuffer(_device, params.HostBuffer, params.numElements * params.elementSize)),
+                                                                 HostBuffer(params.HostBuffer), 
                                                                  _numElements(params.numElements),
                                                                  _elementSize(params.elementSize),
                                                                  deviceLocal(params.deviceLocal)
+  
+  
   {
 
-    VkMemoryPropertyFlagBits flagBits;
-    if (deviceLocal)
-    {
-      flagBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    }
-    else
-    {
-      flagBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    }
-    // Allocate and map memory to new buffer
-    auto memId = _device.selectMemory(buffer, flagBits);
 
-    VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(device.device, buffer, &memReqs);
 
-    VkMemoryAllocateFlagsInfo memAllocInfo = {
-        VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-        nullptr,
-        VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
-        0};
 
-    vkCheck(vkAllocateMemory(_device.device, new VkMemoryAllocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &memAllocInfo, memReqs.size, memId}, nullptr, &memory));
-
-    vkCheck(vkBindBufferMemory(_device.device, buffer, memory, 0));
-
-    void *newData = new void *;
-    if (!deviceLocal)
-    {
-      vkCheck(vkMapMemory(_device.device, memory, 0, VK_WHOLE_SIZE, VkMemoryMapFlags{}, &newData));
-      data = newData;
-    }
   }
+
+
+  
+
 
   void Buffer::teardown()
   {
-    if (!deviceLocal)
-    {
-      vkUnmapMemory(device.device, memory);
-    }
+    
+    //vkUnmapMemory(device.device, memory);
     vkFreeMemory(device.device, memory, nullptr);
     vkDestroyBuffer(device.device, buffer, nullptr);
   }
 
-  uint64_t Buffer::device_addr()
-  {
-    VkBufferDeviceAddressInfo info = {
-        VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-        nullptr,
-        buffer};
-    VkDeviceSize addr = vkGetBufferDeviceAddress(device.device, &info);
-    return addr;
-  }
+  // uint64_t Buffer::device_addr()
+  // {
+  //   VkBufferDeviceAddressInfo info = {
+  //       VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+  //       nullptr,
+  //       buffer};
+  //   VkDeviceSize addr = vkGetBufferDeviceAddress(device.device, &info);
+  //   return addr;
+  // }
 
   // Read spv shader files
   std::vector<uint32_t> read_spirv(const char *filename)

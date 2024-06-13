@@ -91,55 +91,22 @@ namespace easyvk
 
   typedef struct BufferParams
   {
+    void* HostBuffer;
     size_t numElements;
     size_t elementSize;
-    bool deviceAddr;
     bool deviceLocal;
   } BufferParams;
 
   class Buffer
   {
   public:
-    Buffer(Device &device, size_t numElements, size_t elementSize);
-    Buffer(Device &device, BufferParams params);
+    // HostBuffer would be a pointer to a <vector> type so i.e. vector.data()
+    Buffer(Device &device, void* HostBuffer, size_t numElements, size_t elementSize); // I don't know if the easyvk paradigm doesn't want program
+    Buffer(Device &device, BufferParams params);                                      // as part of the class Buffer.
 
+    //void load(easyvk::Device &_device, void* HostBuffer, uint32_t size);
     VkBuffer buffer;
-
-    // The below load and store implementations use a type template which dictates
-    // how the underlying buffer should be interpreted. If the memory is device local,
-    // does nothing.
-    template <typename T>
-    void store(size_t i, T value)
-    {
-      if (!deviceLocal)
-        *(reinterpret_cast<T *>(data) + i) = value;
-    }
-
-    // If the memory is device local, return 0 representation.
-    template <typename T>
-    T load(size_t i)
-    {
-      if (deviceLocal)
-      {
-        return 0;
-      }
-      return *(reinterpret_cast<T *>(data) + i);
-    }
-
-    /**
-     * Zero out the memory associated with the buffer, if the memory is not device local.
-     */
-    void clear()
-    {
-      if (!deviceLocal)
-      {
-        auto buf = static_cast<char *>(data);
-        for (size_t i = 0; i < _numElements * _elementSize; i++)
-        {
-          buf[i] = 0;
-        }
-      }
-    }
+    VkBuffer staging;
 
     /**
      * Returns the total size of the underlying buffer (in bytes).
@@ -150,17 +117,25 @@ namespace easyvk
     }
 
     /** Returns the device address of this buffer. */
-    uint64_t device_addr();
+    //uint64_t device_addr();
 
     void teardown();
+    void load(easyvk::Device &_device, std::vector<uint> &HostBuffer, uint32_t size);
+    //VkBuffer getNewBuffer(easyvk::Device &_device, void* HostBuffer, uint32_t size);
+
+
 
   private:
     easyvk::Device &device;
     VkDeviceMemory memory;
+    VkBuffer getNewBuffer(easyvk::Device &_device, void* HostBuffer, uint32_t size);
+    void CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void createBuffer(easyvk::Device &_device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory); 
     bool deviceLocal; // specifies whether the memory can be mapped on the host
     size_t _numElements;
     size_t _elementSize;
-    void *data;
+    void *HostBuffer;
+    //void *data;
   };
 
   typedef struct ShaderStatistics {
@@ -201,11 +176,11 @@ namespace easyvk
     std::vector<VkDescriptorBufferInfo> bufferInfos;
     VkPipelineLayout pipelineLayout;
     VkPipeline pipeline;
+    VkCommandPool commandPool; 
     uint32_t numWorkgroups;
     uint32_t workgroupSize;
     VkFence fence;
     VkCommandBuffer commandBuffer;
-    VkCommandPool commandPool;
     VkQueryPool timestampQueryPool;
   };
 

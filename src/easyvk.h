@@ -120,8 +120,7 @@ namespace easyvk
     //uint64_t device_addr();
 
     void teardown();
-    void load(easyvk::Device &_device, std::vector<uint> &HostBuffer, uint32_t size);
-    //VkBuffer getNewBuffer(easyvk::Device &_device, void* HostBuffer, uint32_t size);
+    void load(easyvk::Device &_device, std::vector<uint> &HostBuffer);
 
 
 

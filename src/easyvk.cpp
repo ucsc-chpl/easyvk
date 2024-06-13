@@ -21,7 +21,7 @@
 
 #include "easyvk.h"
 #include <string.h>
-#include <iostream> // TODO: get tid of this
+//#include <iostream> // TODO: get tid of this
 
 // TODO: extend this to include ios logging lib
 void evk_log(const char *fmt, ...)
@@ -479,7 +479,6 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
     copyRegion.size = size; 
     
     
-    // This function non-deterministically segfaults
     vkCmdCopyBuffer ( commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion );
     
     vkEndCommandBuffer( commandBuffer );
@@ -491,7 +490,6 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
 
     
     vkQueueSubmit( queue, 1, &submitInfo, VK_NULL_HANDLE );
-    std::cout << "on wheat bread.\n";
     vkQueueWaitIdle( queue );
     vkFreeCommandBuffers( _device.device, commandPool, 1, &commandBuffer );
     
@@ -509,19 +507,16 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
     VkDeviceMemory DeviceBufferMemory;
 
 
-    std::cout << "butter\n";
     createBuffer( _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory );
-    std::cout << "and jam\n";
     void *data;
     vkCheck( vkMapMemory(_device.device, stagingBufferMemory, 0, bufferSize, 0, &data) );  
-    memcpy( data, HostBuffer, bufferSize * sizeof(uint)); // HostBuffer is already HostBuffer.data() I believe
+    //memcpy( data, HostBuffer, bufferSize * sizeof(uint)); // HostBuffer is already HostBuffer.data() I believe
+    memcpy( data, HostBuffer, bufferSize);
     vkUnmapMemory( _device.device, stagingBufferMemory );
     
-    
-    
     createBuffer( _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, DeviceLocalBuffer, DeviceBufferMemory );
-    CopyBuffer( _device, stagingBuffer, DeviceLocalBuffer, bufferSize * sizeof(uint));
-    
+    //CopyBuffer( _device, stagingBuffer, DeviceLocalBuffer, bufferSize * sizeof(uint));
+    CopyBuffer( _device, stagingBuffer, DeviceLocalBuffer, bufferSize );
 
     vkDestroyBuffer( _device.device, stagingBuffer, nullptr ); 
     vkFreeMemory( _device.device, stagingBufferMemory, nullptr );
@@ -530,8 +525,9 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
     return DeviceLocalBuffer;
   }
 
-  void Buffer::load(easyvk::Device &_device, std::vector<uint> &HostBuffer, uint32_t size)
+  void Buffer::load(easyvk::Device &_device, std::vector<uint> &HostBuffer)
   {
+    uint32_t size = _numElements * _elementSize;
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
     VkDeviceSize bufferSize = size;
@@ -541,14 +537,16 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
       stagingBuffer, stagingBufferMemory);
 
 
-    CopyBuffer(_device, buffer, stagingBuffer, size * sizeof(uint));
+    //CopyBuffer(_device, buffer, stagingBuffer, size * sizeof(uint));
+    CopyBuffer( _device, buffer, stagingBuffer, size );
 
     void* bufferData = nullptr;
     vkMapMemory(_device.device, stagingBufferMemory, 0, size, 0, &bufferData);
     
     //HostBuffer.insert(HostBuffer.begin(), (uint*)bufferData, (uint*)bufferData + size);
 
-    memcpy(HostBuffer.data(), bufferData, bufferSize * sizeof(uint));
+    //memcpy(HostBuffer.data(), bufferData, bufferSize * sizeof(uint));
+    memcpy(HostBuffer.data(), bufferData, bufferSize);
 
     //std::copy((uint*)bufferData, (uint*)bufferData + size, std::back_inserter(HostBuffer));
     vkUnmapMemory(_device.device, stagingBufferMemory);
@@ -562,7 +560,7 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
   Buffer::Buffer(easyvk::Device &_device, void* HostBuffer, size_t numElements, size_t elementSize) : Buffer::Buffer(_device, {HostBuffer, numElements, elementSize, true}) {} 
 
   Buffer::Buffer(easyvk::Device &_device, BufferParams params) : device(_device),
-                                                                 buffer(Buffer::getNewBuffer(_device, params.HostBuffer, params.numElements * params.elementSize)),
+                                                                 buffer(Buffer::getNewBuffer(_device, params.HostBuffer, params.numElements * params.elementSize )),
                                                                  HostBuffer(params.HostBuffer), 
                                                                  _numElements(params.numElements),
                                                                  _elementSize(params.elementSize),

@@ -56,7 +56,7 @@ namespace easyvk
     Device(Instance &_instance, VkPhysicalDevice _physicalDevice);
     VkDevice device;
     VkPhysicalDeviceProperties properties;
-    uint32_t selectMemory(VkBuffer buffer, VkMemoryPropertyFlags flags);
+    uint32_t selectMemory(uint32_t memoryTypeBits, VkMemoryPropertyFlags flags);
     uint32_t computeFamilyId = uint32_t(-1);
     uint32_t subgroupSize();
     VkQueue computeQueue;
@@ -95,8 +95,10 @@ namespace easyvk
     ~Buffer();
 
     void copy(Buffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0); // GPU -> GPU 
-    void store(void* src, size_t len); // CPU -> GPU
-    void load(void* dst, size_t len); // GPU -> CPU
+    void store(void* src, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
+    void load(void* dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0); 
+
+    void _copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
 
     easyvk::Device &device;
     VkCommandPool commandPool;
@@ -105,6 +107,7 @@ namespace easyvk
     VkBuffer buffer;
     VkBuffer staging;
     size_t size;
+
   };
 
   typedef struct ShaderStatistics {

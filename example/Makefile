@@ -10,7 +10,7 @@ CINITS = $(patsubst %.cl,build/%.cinit,$(SHADERS))
 all: build easyvk example
 
 build:
-	mkdir build
+	mkdir -p build
 
 build-android:
 	mkdir -p build/android

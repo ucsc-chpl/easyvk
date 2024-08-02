@@ -34,18 +34,21 @@ int main(int argc, char* argv[]) {
 	auto numIters = 1;
 	for (int n = 0; n < numIters; n++) {
 		// Define the buffers to use in the kernel. 
-		auto a = easyvk::Buffer(device, size, sizeof(uint32_t));
-		auto b = easyvk::Buffer(device, size, sizeof(double));
-		auto c = easyvk::Buffer(device, size, sizeof(double));
+		auto a = easyvk::Buffer(device, size * sizeof(uint32_t));
+		auto b = easyvk::Buffer(device, size * sizeof(double));
+		auto c = easyvk::Buffer(device, size * sizeof(double));
 
 		// Write initial values to the buffers.
+		std::vector<uint32_t> a_host;
+		std::vector<double> b_host;
 		for (int i = 0; i < size; i++) {
 			// The buffer provides an untyped view of the memory, so you must specify
 			// the type when using the load/store methods. 
-			a.store<uint32_t>(i, i);
-			b.store<double>(i, i + 1);
+			a_host.push_back(i);
+			b_host.push_back(i + 1);
 		}
-		c.clear();
+		
+
 		std::vector<easyvk::Buffer> bufs = {a, b, c};
 
 		// Kernel source code can be loaded in two ways: 
@@ -62,20 +65,18 @@ int main(int argc, char* argv[]) {
 
 		// Run the kernel.
 		program.initialize("litmus_test");
-
 		program.run();
 
 		// Check the output.
+		std::vector<double> c_host(size);
+		c.load(c_host.data(), size * sizeof(double));
 		for (int i = 0; i < size; i++) {
 			// std::cout << "c[" << i << "]: " << c.load(i) << "\n";
-			assert(c.load<double>(i) == a.load<uint32_t>(i) + b.load<double>(i));
+			assert(c_host[i] == a_host[i] + b_host[i]);
 		}
 
 		// Cleanup.
 		program.teardown();
-		a.teardown();
-		b.teardown();
-		c.teardown();
 	}
 
 	device.teardown();

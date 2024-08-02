@@ -156,16 +156,14 @@ namespace easyvk {
     return VK_FALSE;
   }
 
-  Instance::Instance(bool _enableValidationLayers)
-  {
+  Instance::Instance(bool _enableValidationLayers) {
     enableValidationLayers = _enableValidationLayers;
     std::vector<const char *> enabledLayers;
     std::vector<const char *> enabledExtensions;
 #ifdef __ANDROID__
     vkCheck(volkInitialize());
 #endif
-    if (enableValidationLayers)
-    {
+    if (enableValidationLayers) {
       enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
       enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     }
@@ -175,13 +173,14 @@ namespace easyvk {
 
     // Define app information
     VkApplicationInfo appInfo{
-        VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        nullptr,
-        "EasyVK Application",
-        0,
-        "Heterogeneous Programming Group",
-        0,
-        VK_API_VERSION_1_3};
+      VK_STRUCTURE_TYPE_APPLICATION_INFO,
+      nullptr,
+      "EasyVK Application",
+      0,
+      "Heterogeneous Programming Group",
+      0,
+      VK_API_VERSION_1_3
+    };
 
 #ifdef __APPLE__
     VkInstanceCreateFlags instanceCreateFlags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -206,8 +205,7 @@ namespace easyvk {
     volkLoadInstance(instance);
 #endif
 
-    if (enableValidationLayers)
-    {
+    if (enableValidationLayers) {
       VkDebugReportCallbackCreateInfoEXT debugCreateInfo{
           VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
           nullptr,
@@ -215,26 +213,20 @@ namespace easyvk {
           debugReporter};
       // Load debug report callback extension
       auto createFN = PFN_vkCreateDebugReportCallbackEXT(vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
-      if (createFN)
-      {
+      if (createFN) {
         createFN(instance, &debugCreateInfo, nullptr, &debugReportCallback);
-      }
-      else
-      {
       }
     }
 
     // Print out vulkan's instance version
     uint32_t version;
     PFN_vkEnumerateInstanceVersion my_EnumerateInstanceVersion = (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkEnumerateInstanceVersion");
-    if (nullptr != my_EnumerateInstanceVersion)
-    {
+    if (nullptr != my_EnumerateInstanceVersion) {
       my_EnumerateInstanceVersion(&version);
     }
   }
 
-  std::vector<VkPhysicalDevice> Instance::physicalDevices()
-  {
+  std::vector<VkPhysicalDevice> Instance::physicalDevices() {
     // Get physical device count
     uint32_t deviceCount = 0;
     vkCheck(vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr));
@@ -288,12 +280,13 @@ namespace easyvk {
 
     // Define device queue info
     queues[0] = VkDeviceQueueCreateInfo{
-        VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        nullptr,
-        VkDeviceQueueCreateFlags{},
-        computeFamilyId,
-        1,
-        &priority};
+      VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      nullptr,
+      VkDeviceQueueCreateFlags{},
+      computeFamilyId,
+      1,
+      &priority
+    };
 
     // check for support for AMD Shader stats
     uint32_t pPropertyCount;
@@ -354,8 +347,7 @@ namespace easyvk {
     vkGetPhysicalDeviceProperties(physicalDevice, &properties);
   }
 
-  uint32_t Device::selectMemory(uint32_t memoryTypeBits, VkMemoryPropertyFlags flags)
-  {
+  uint32_t Device::selectMemory(uint32_t memoryTypeBits, VkMemoryPropertyFlags flags) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
@@ -367,8 +359,7 @@ namespace easyvk {
     return uint32_t(-1);
   }
 
-  uint32_t Device::subgroupSize()
-  {
+  uint32_t Device::subgroupSize() {
     VkPhysicalDeviceSubgroupProperties subgroupProperties;
     subgroupProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
     subgroupProperties.pNext = NULL;
@@ -381,8 +372,7 @@ namespace easyvk {
     return subgroupProperties.subgroupSize;
   }
 
-  void Device::teardown()
-  {
+  void Device::teardown() {
     vkDestroyDevice(device, nullptr);
   }
 
@@ -414,20 +404,20 @@ namespace easyvk {
     VkMemoryAllocateInfo allocInfo {
       .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .allocationSize = memReqs.size,
-      .memoryTypeIndex = device.selectMemory(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      .memoryTypeIndex = device.selectMemory(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
     };
-    vkCheck(vkAllocateMemory(device.device, &allocInfo, &memory));
+    vkCheck(vkAllocateMemory(device.device, &allocInfo, nullptr, &memory));
     vkCheck(vkBindBufferMemory(device.device, buffer, memory, 0));
 
     // Allocate device memory to staging buffer
     VkMemoryRequirements stagingMemReqs;
     vkGetBufferMemoryRequirements(device.device, staging, &stagingMemReqs);
     VkMemoryAllocateInfo stagingAllocInfo {
-      .stype = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
       .allocationSize = memReqs.size,
-      .memoryTYpeIndex = device.selectMemory(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+      .memoryTypeIndex = device.selectMemory(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
     };
-    vkCheck(vkAllocateMemory(device.device, &stagingAllocInfo, &stagingMemory));
+    vkCheck(vkAllocateMemory(device.device, &stagingAllocInfo, nullptr, &stagingMemory));
     vkCheck(vkBindBufferMemory(device.device, staging, stagingMemory, 0));
 
     // Create command pool for copy commands
@@ -447,12 +437,12 @@ namespace easyvk {
     vkDestroyBuffer(device.device, staging, nullptr);
   }
 
-  Buffer::copy(Buffer dst, size_t len, size_t srcOffset, size_t dstOffset) {
+  void Buffer::_copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset, size_t dstOffset) {
     // Allocate command buffer from command pool
     VkCommandBufferAllocateInfo allocInfo {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-      .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
       .commandPool = commandPool,
+      .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
       .commandBufferCount = 1
     };
     VkCommandBuffer commandBuffer;
@@ -465,11 +455,11 @@ namespace easyvk {
     };
     vkCheck(vkBeginCommandBuffer(commandBuffer, &beginInfo));
     VkBufferCopy copyRegion {
-      .srcOffset = srcOffset
-      .dstOffset = dstOffset
+      .srcOffset = srcOffset,
+      .dstOffset = dstOffset,
       .size = len
     };
-    vkCmdCopyBuffer(commandBuffer, buffer, dst, 1, &copyRegion);
+    vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
     vkCheck(vkEndCommandBuffer(commandBuffer));
 
     // Submit command buffer to queue, wait for completion
@@ -478,66 +468,36 @@ namespace easyvk {
       .commandBufferCount = 1,
       .pCommandBuffers = &commandBuffer
     };
-    vkCheck(vkQueueSubmit(device.queue, 1, &submitInfo, VK_NULL_HANDLE));
-    vkCheck(vkQueueWaitIdle(device.queue));
+    vkCheck(vkQueueSubmit(device.computeQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    vkCheck(vkQueueWaitIdle(device.computeQueue));
     vkCheck(vkResetCommandPool(device.device, commandPool, 0));
   }
 
-Buffer::store(void* src, size_t len, size_t srcOffset, size_t dstOffset) {
-
-}
-
-Buffer::load(void* dst, size_t len, size_t srcOffset, size_t dstOffset) {
-  
-}
-
-  // loads a vkbuffer into a std::vector
-  void Buffer::load(easyvk::Device &_device, std::vector<uint> &HostBuffer)
-  {
-    uint32_t size = _numElements * _elementSize;
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    VkDeviceSize bufferSize = size;
-
-    createBuffer(_device, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      stagingBuffer, stagingBufferMemory);
-
-    CopyBuffer( _device, buffer, stagingBuffer, size );
-
-    void* bufferData = nullptr;
-    vkMapMemory(_device.device, stagingBufferMemory, 0, size, 0, &bufferData);
-
-    memcpy(HostBuffer.data(), bufferData, bufferSize);
-
-    vkUnmapMemory(_device.device, stagingBufferMemory);
-
-    vkDestroyBuffer(_device.device, stagingBuffer, nullptr);
-    vkFreeMemory(_device.device, stagingBufferMemory, nullptr);
+  void Buffer::copy(Buffer dst, size_t len, size_t srcOffset, size_t dstOffset) {
+    _copy(buffer, dst.buffer, len, srcOffset, dstOffset);
   }
 
+  void Buffer::store(void* src, size_t len, size_t srcOffset, size_t dstOffset) {
+    // Copy src region to staging buffer region
+    void* stagingPtr;
+    vkCheck(vkMapMemory(device.device, stagingMemory, dstOffset, len, 0, &stagingPtr));
+    memcpy(stagingPtr, (char*)src + srcOffset, len);
+    vkUnmapMemory(device.device, stagingMemory);
 
-  
-  Buffer::Buffer(easyvk::Device &device, size_t numElements, size_t elementSize, bool retainStaging) : device(device),
-                                                                                    numElements(numElements)
-                                                                                    elementSize(elementSize) {} 
-
-  void Buffer::teardown()
-  {
-    vkFreeMemory(device.device, memory, nullptr);
-    vkDestroyBuffer(device.device, buffer, nullptr);
+    // Copy staging buffer region to device local buffer region
+    _copy(staging, buffer, len, dstOffset, dstOffset);
   }
 
-  // uint64_t Buffer::device_addr()
-  // {
-  //   VkBufferDeviceAddressInfo info = {
-  //       VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-  //       nullptr,
-  //       buffer};
-  //   VkDeviceSize addr = vkGetBufferDeviceAddress(device.device, &info);
-  //   return addr;
-  // }
+  void Buffer::load(void* dst, size_t len, size_t srcOffset, size_t dstOffset) {
+    // Copy device local buffer region to staging buffer region
+    _copy(buffer, staging, len, srcOffset, srcOffset);
 
+    // Copy staging buffer region to dst region (assumes memory allocated in dst)
+    void* stagingPtr;
+    vkCheck(vkMapMemory(device.device, stagingMemory, srcOffset, len, 0, &stagingPtr));
+    memcpy((char*)stagingPtr + srcOffset, stagingPtr, len);
+    vkUnmapMemory(device.device, stagingMemory);
+  }
 
   // -------------------------------------------------------------------------------
 

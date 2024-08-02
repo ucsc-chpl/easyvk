@@ -20,12 +20,9 @@
 #endif
 
 #include "easyvk.h"
-#include <string.h>
-//#include <iostream> // TODO: get tid of this
 
 // TODO: extend this to include ios logging lib
-void evk_log(const char *fmt, ...)
-{
+void evk_log(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
 #ifdef __ANDROID__
@@ -36,13 +33,9 @@ void evk_log(const char *fmt, ...)
   va_end(args);
 }
 
-bool printDeviceInfo = false;
-
 // Would use string_VkResult() for this but vk_enum_string_helper.h is no more...
-inline const char *vkResultString(VkResult res)
-{
-  switch (res)
-  {
+inline const char *vkResultString(VkResult res) {
+  switch (res) {
   // 1.0
   case VK_SUCCESS:
     return "VK_SUCCESS";
@@ -124,26 +117,17 @@ inline const char *vkResultString(VkResult res)
 }
 
 // Macro for checking Vulkan callbacks
-inline void vkAssert(VkResult result, const char *file, int line, bool abort = true)
-{
-  if (result != VK_SUCCESS)
-  {
+inline void vkAssert(VkResult result, const char *file, int line, bool abort = true) {
+  if (result != VK_SUCCESS) {
     evk_log("vkAssert: ERROR %s in '%s', line %d\n", vkResultString(result), file, line);
     exit(1);
   }
 }
-#define vkCheck(result)                     \
-  {                                         \
-    vkAssert((result), __FILE__, __LINE__); \
-  }
+#define vkCheck(result) { vkAssert((result), __FILE__, __LINE__); }
 
-namespace easyvk
-{
-
-  const char *vkDeviceType(VkPhysicalDeviceType type)
-  {
-    switch (type)
-    {
+namespace easyvk {
+  const char *vkDeviceType(VkPhysicalDeviceType type) {
+    switch (type) {
     case VK_PHYSICAL_DEVICE_TYPE_OTHER:
       return "VK_PHYSICAL_DEVICE_TYPE_OTHER";
       break;
@@ -165,9 +149,7 @@ namespace easyvk
     }
   }
 
-  static auto VKAPI_ATTR debugReporter(
-      VkDebugReportFlagsEXT, VkDebugReportObjectTypeEXT, uint64_t, size_t, int32_t, const char *pLayerPrefix, const char *pMessage, void *pUserData) -> VkBool32
-  {
+  static auto VKAPI_ATTR debugReporter(VkDebugReportFlagsEXT, VkDebugReportObjectTypeEXT, uint64_t, size_t, int32_t, const char *pLayerPrefix, const char *pMessage, void *pUserData) -> VkBool32 {
     std::ofstream debugFile("vk-output.txt");
     debugFile << "[Vulkan]:" << pLayerPrefix << ": " << pMessage << "\n";
     debugFile.close();
@@ -264,23 +246,18 @@ namespace easyvk
     return physicalDevices;
   }
 
-  void Instance::teardown()
-  {
+  void Instance::teardown() {
     // Destroy debug report callback extension
-    if (enableValidationLayers)
-    {
+    if (enableValidationLayers) {
       auto destroyFn = PFN_vkDestroyDebugReportCallbackEXT(vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT"));
-      if (destroyFn)
-      {
+      if (destroyFn) 
         destroyFn(instance, debugReportCallback, nullptr);
-      }
     }
     // Destroy instance
     vkDestroyInstance(instance, nullptr);
   }
 
-  uint32_t getComputeFamilyId(VkPhysicalDevice physicalDevice)
-  {
+  uint32_t getComputeFamilyId(VkPhysicalDevice physicalDevice) {
     // Get queue family count
     uint32_t queueFamilyPropertyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, nullptr);
@@ -292,10 +269,8 @@ namespace easyvk
     uint32_t computeFamilyId = -1;
 
     // Get compute family id based on size of family properties
-    for (auto queueFamily : familyProperties)
-    {
-      if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
-      {
+    for (auto queueFamily : familyProperties) {
+      if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
         computeFamilyId = i;
         break;
       }
@@ -306,8 +281,7 @@ namespace easyvk
 
   Device::Device(easyvk::Instance &_instance, VkPhysicalDevice _physicalDevice) : instance(_instance),
                                                                                   physicalDevice(_physicalDevice),
-                                                                                  computeFamilyId(getComputeFamilyId(_physicalDevice))
-  {
+                                                                                  computeFamilyId(getComputeFamilyId(_physicalDevice)) {
 
     auto priority = float(1.0);
     auto queues = std::array<VkDeviceQueueCreateInfo, 1>{};
@@ -380,18 +354,13 @@ namespace easyvk
     vkGetPhysicalDeviceProperties(physicalDevice, &properties);
   }
 
-  uint32_t Device::selectMemory(VkBuffer buffer, VkMemoryPropertyFlags flags)
+  uint32_t Device::selectMemory(uint32_t memoryTypeBits, VkMemoryPropertyFlags flags)
   {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
-    VkMemoryRequirements memoryReqs;
-    vkGetBufferMemoryRequirements(device, buffer, &memoryReqs);
-
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i)
-    {
-      if ((memoryReqs.memoryTypeBits & (1u << i)) && ((flags & memProperties.memoryTypes[i].propertyFlags) == flags))
-      {
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+      if ((memoryTypeBits & (1u << i)) && ((flags & memProperties.memoryTypes[i].propertyFlags) == flags)) {
         return i;
       }
     }
@@ -418,115 +387,109 @@ namespace easyvk
   }
 
 
-  // function that creates a new vkbuffer
-void Buffer::createBuffer(easyvk::Device &_device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& _buffer, VkDeviceMemory& _bufferMemory) 
-  {
-    VkBufferCreateInfo bufferInfo{ };
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+// -------------------------------------------------------------------------------
 
+  Buffer::Buffer(Device &device, size_t size) : device(device), size(size) {
+    // Create device-local buffer
+    VkBufferCreateInfo bufferInfo {
+      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+      .size = size,
+      .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+    };
+    vkCheck(vkCreateBuffer(device.device, &bufferInfo, nullptr, &buffer));
 
-    vkCreateBuffer(_device.device, &bufferInfo, nullptr, &_buffer); // surround with vkcheck
+    // Create staging buffer
+    VkBufferCreateInfo stagingBufferInfo {
+      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+      .size = size,
+      .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+    };
+    vkCheck(vkCreateBuffer(device.device, &stagingBufferInfo, nullptr, &staging));
 
+    // Allocate device memory to device-local buffer
     VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(_device.device, _buffer, &memReqs);
-    VkMemoryAllocateInfo allocInfo{ };
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReqs.size;
-    allocInfo.memoryTypeIndex = _device.selectMemory(_buffer, properties); 
-    
+    vkGetBufferMemoryRequirements(device.device, buffer, &memReqs);
+    VkMemoryAllocateInfo allocInfo {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize = memReqs.size,
+      .memoryTypeIndex = device.selectMemory(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    };
+    vkCheck(vkAllocateMemory(device.device, &allocInfo, &memory));
+    vkCheck(vkBindBufferMemory(device.device, buffer, memory, 0));
 
-    // Allocate and map memory to new buffer
+    // Allocate device memory to staging buffer
+    VkMemoryRequirements stagingMemReqs;
+    vkGetBufferMemoryRequirements(device.device, staging, &stagingMemReqs);
+    VkMemoryAllocateInfo stagingAllocInfo {
+      .stype = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize = memReqs.size,
+      .memoryTYpeIndex = device.selectMemory(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+    };
+    vkCheck(vkAllocateMemory(device.device, &stagingAllocInfo, &stagingMemory));
+    vkCheck(vkBindBufferMemory(device.device, staging, stagingMemory, 0));
 
-    vkCheck(vkAllocateMemory(_device.device, &allocInfo, nullptr, &_bufferMemory));
-
-    vkCheck(vkBindBufferMemory(_device.device, _buffer, _bufferMemory, 0));    
+    // Create command pool for copy commands
+    VkCommandPoolCreateInfo commandPoolCreateInfo {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+      .pNext = nullptr,
+      .flags = 0,
+      .queueFamilyIndex = device.computeFamilyId
+    };
+    vkCheck(vkCreateCommandPool(device.device, &commandPoolCreateInfo, nullptr, &commandPool));
   }
-  
 
-  // copies between to vkbuffers 
-void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) 
-  {
+  Buffer::~Buffer() {
+    vkFreeMemory(device.device, memory, nullptr);
+    vkFreeMemory(device.device, stagingMemory, nullptr);
+    vkDestroyBuffer(device.device, buffer, nullptr);
+    vkDestroyBuffer(device.device, staging, nullptr);
+  }
 
-    VkCommandPool commandPool; // It seems ineffecient possibly to create a commandPool eveyrtime we need to copy a buffer, maybe create a commanPool field in Buffer
-                               // and we'll use that command pool for copy commands
-
-    VkCommandPoolCreateInfo commandPoolCreateInfo{
-        VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        nullptr,
-        VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-        _device.computeFamilyId};
-
-    // Create command pool from compute type queue, and allocate it from 
-    vkCheck(vkCreateCommandPool(_device.device, &commandPoolCreateInfo, nullptr, &commandPool));
-
-    auto queue = _device.computeQueue;
-    
-
-    VkCommandBufferAllocateInfo allocInfo{ }; 
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
-    allocInfo.commandBufferCount = 1; 
-    
+  Buffer::copy(Buffer dst, size_t len, size_t srcOffset, size_t dstOffset) {
+    // Allocate command buffer from command pool
+    VkCommandBufferAllocateInfo allocInfo {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+      .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+      .commandPool = commandPool,
+      .commandBufferCount = 1
+    };
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers( _device.device, &allocInfo, &commandBuffer ); 
-    
-    VkCommandBufferBeginInfo beginInfo{ }; 
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO; 
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT; 
-    vkBeginCommandBuffer( commandBuffer, &beginInfo ); 
-    
-    VkBufferCopy copyRegion{ }; 
-    copyRegion.size = size; 
-    
-    
-    vkCmdCopyBuffer ( commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion );
-    
-    vkEndCommandBuffer( commandBuffer );
-    
-    VkSubmitInfo submitInfo{ };
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
+    vkCheck(vkAllocateCommandBuffers(device.device, &allocInfo, &commandBuffer));
 
-    
-    vkQueueSubmit( queue, 1, &submitInfo, VK_NULL_HANDLE );
-    vkQueueWaitIdle( queue );
-    vkFreeCommandBuffers( _device.device, commandPool, 1, &commandBuffer );
-    
+    // Begin recording command buffer, record command to copy buffer to buffer, end command buffer record
+    VkCommandBufferBeginInfo beginInfo {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+    vkCheck(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+    VkBufferCopy copyRegion {
+      .srcOffset = srcOffset
+      .dstOffset = dstOffset
+      .size = len
+    };
+    vkCmdCopyBuffer(commandBuffer, buffer, dst, 1, &copyRegion);
+    vkCheck(vkEndCommandBuffer(commandBuffer));
+
+    // Submit command buffer to queue, wait for completion
+    VkSubmitInfo submitInfo {
+      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .commandBufferCount = 1,
+      .pCommandBuffers = &commandBuffer
+    };
+    vkCheck(vkQueueSubmit(device.queue, 1, &submitInfo, VK_NULL_HANDLE));
+    vkCheck(vkQueueWaitIdle(device.queue));
+    vkCheck(vkResetCommandPool(device.device, commandPool, 0));
   }
 
-  // Create new buffer
-  VkBuffer Buffer::getNewBuffer(easyvk::Device &_device, void* HostBuffer, uint32_t size)
-  {
-    VkDeviceSize bufferSize = size;
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+Buffer::store(void* src, size_t len, size_t srcOffset, size_t dstOffset) {
 
+}
 
-    VkBuffer DeviceLocalBuffer;
-    VkDeviceMemory DeviceBufferMemory;
-
-
-    createBuffer( _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory );
-    void *data;
-    vkCheck( vkMapMemory(_device.device, stagingBufferMemory, 0, bufferSize, 0, &data) );  
-    //memcpy( data, HostBuffer, bufferSize * sizeof(uint)); // HostBuffer is already HostBuffer.data() I believe
-    memcpy( data, HostBuffer, bufferSize);
-    vkUnmapMemory( _device.device, stagingBufferMemory );
-    
-    createBuffer( _device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, DeviceLocalBuffer, DeviceBufferMemory );
-    CopyBuffer( _device, stagingBuffer, DeviceLocalBuffer, bufferSize );
-
-    vkDestroyBuffer( _device.device, stagingBuffer, nullptr ); 
-    vkFreeMemory( _device.device, stagingBufferMemory, nullptr );
-    memory = DeviceBufferMemory;
-    
-    return DeviceLocalBuffer;
-  }
+Buffer::load(void* dst, size_t len, size_t srcOffset, size_t dstOffset) {
+  
+}
 
   // loads a vkbuffer into a std::vector
   void Buffer::load(easyvk::Device &_device, std::vector<uint> &HostBuffer)
@@ -555,26 +518,9 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
 
 
   
-  Buffer::Buffer(easyvk::Device &_device, void* HostBuffer, size_t numElements, size_t elementSize) : Buffer::Buffer(_device, {HostBuffer, numElements, elementSize, true}) {} 
-
-  Buffer::Buffer(easyvk::Device &_device, BufferParams params) : device(_device),
-                                                                 buffer(Buffer::getNewBuffer(_device, params.HostBuffer, params.numElements * params.elementSize )),
-                                                                 HostBuffer(params.HostBuffer), 
-                                                                 _numElements(params.numElements),
-                                                                 _elementSize(params.elementSize),
-                                                                 deviceLocal(params.deviceLocal)
-  
-  
-  {
-
-
-
-
-  }
-
-
-  
-
+  Buffer::Buffer(easyvk::Device &device, size_t numElements, size_t elementSize, bool retainStaging) : device(device),
+                                                                                    numElements(numElements)
+                                                                                    elementSize(elementSize) {} 
 
   void Buffer::teardown()
   {
@@ -591,6 +537,9 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
   //   VkDeviceSize addr = vkGetBufferDeviceAddress(device.device, &info);
   //   return addr;
   // }
+
+
+  // -------------------------------------------------------------------------------
 
   // Read spv shader files
   std::vector<uint32_t> read_spirv(const char *filename)
@@ -694,10 +643,6 @@ void Buffer::CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer ds
         &descriptorSetLayout,
         1,
         new VkPushConstantRange{VK_SHADER_STAGE_COMPUTE_BIT, 0, push_constant_size_bytes}};
-
-    // Print out device's properties information
-    if (!printDeviceInfo)
-      printDeviceInfo = true;
 
     // Create a new pipeline layout object
     vkCheck(vkCreatePipelineLayout(device.device, &createInfo, nullptr, &pipelineLayout));

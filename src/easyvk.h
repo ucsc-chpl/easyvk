@@ -19,6 +19,7 @@
 #include <fstream>
 #include <set>
 #include <string>
+#include <cstring>
 #include <stdarg.h>
 #include <vector>
 #include <map>
@@ -62,7 +63,6 @@ namespace easyvk
     // AMD shader info extension gives more register info than the portable stats extension
     bool supportsAMDShaderStats;
     void teardown();
-
   private:
     Instance &instance;
     VkPhysicalDevice physicalDevice;
@@ -89,52 +89,22 @@ namespace easyvk
    * specifies it's types.
    */
 
-  typedef struct BufferParams
-  {
-    void* HostBuffer;
-    size_t numElements;
-    size_t elementSize;
-    bool deviceLocal;
-  } BufferParams;
-
-  class Buffer
-  {
+  class Buffer {
   public:
-    // HostBuffer would be a pointer to a <vector> type so i.e. vector.data()
-    Buffer(Device &device, void* HostBuffer, size_t numElements, size_t elementSize); // I don't know if the easyvk paradigm doesn't want program
-    Buffer(Device &device, BufferParams params);                                      // as part of the class Buffer.
+    Buffer(Device &device, size_t size);
+    ~Buffer();
 
-    //void load(easyvk::Device &_device, void* HostBuffer, uint32_t size);
+    void copy(Buffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0); // GPU -> GPU 
+    void store(void* src, size_t len); // CPU -> GPU
+    void load(void* dst, size_t len); // GPU -> CPU
+
+    easyvk::Device &device;
+    VkCommandPool commandPool;
+    VkDeviceMemory memory;
+    VkDeviceMemory stagingMemory;
     VkBuffer buffer;
     VkBuffer staging;
-
-    /**
-     * Returns the total size of the underlying buffer (in bytes).
-     */
-    size_t size() const
-    {
-      return _numElements * _elementSize;
-    }
-
-    /** Returns the device address of this buffer. */
-    //uint64_t device_addr();
-
-    void teardown();
-    void load(easyvk::Device &_device, std::vector<uint> &HostBuffer);
-
-
-
-  private:
-    easyvk::Device &device;
-    VkDeviceMemory memory;
-    VkBuffer getNewBuffer(easyvk::Device &_device, void* HostBuffer, uint32_t size);
-    void CopyBuffer(easyvk::Device &_device, VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-    void createBuffer(easyvk::Device &_device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory); 
-    bool deviceLocal; // specifies whether the memory can be mapped on the host
-    size_t _numElements;
-    size_t _elementSize;
-    void *HostBuffer;
-    //void *data;
+    size_t size;
   };
 
   typedef struct ShaderStatistics {
@@ -149,8 +119,7 @@ namespace easyvk
    * Buffers should be passed in according to their argument order in the shader.
    * Workgroup memory buffers are indexed from 0.
    */
-  class Program
-  {
+  class Program {
   public:
     Program(Device &_device, const char *filepath, std::vector<easyvk::Buffer> &buffers);
     Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<easyvk::Buffer> &buffers);

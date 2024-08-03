@@ -39,6 +39,7 @@ int main(int argc, char* argv[]) {
 		auto c = easyvk::Buffer(device, size * sizeof(double));
 
 		// Write initial values to the buffers.
+		printf("Setting up host buffers...\n");
 		std::vector<uint32_t> a_host;
 		std::vector<double> b_host;
 		for (int i = 0; i < size; i++) {
@@ -47,8 +48,12 @@ int main(int argc, char* argv[]) {
 			a_host.push_back(i);
 			b_host.push_back(i + 1);
 		}
-		
 
+		printf("Loading host buffers to device...\n");
+		a.store(a_host.data(), size * sizeof(uint32_t));
+		b.store(b_host.data(), size * sizeof(double));
+
+		printf("Setting up program...\n");
 		std::vector<easyvk::Buffer> bufs = {a, b, c};
 
 		// Kernel source code can be loaded in two ways: 
@@ -64,12 +69,15 @@ int main(int argc, char* argv[]) {
 		program.setWorkgroupSize(1);
 
 		// Run the kernel.
+		printf("Running program...\n");
 		program.initialize("litmus_test");
 		program.run();
 
 		// Check the output.
+		printf("Loading results from device...\n");
 		std::vector<double> c_host(size);
 		c.load(c_host.data(), size * sizeof(double));
+		printf("Checking results...\n");
 		for (int i = 0; i < size; i++) {
 			// std::cout << "c[" << i << "]: " << c.load(i) << "\n";
 			assert(c_host[i] == a_host[i] + b_host[i]);

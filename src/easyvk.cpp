@@ -150,9 +150,7 @@ namespace easyvk {
   }
 
   static auto VKAPI_ATTR debugReporter(VkDebugReportFlagsEXT, VkDebugReportObjectTypeEXT, uint64_t, size_t, int32_t, const char *pLayerPrefix, const char *pMessage, void *pUserData) -> VkBool32 {
-    std::ofstream debugFile("vk-output.txt");
-    debugFile << "[Vulkan]:" << pLayerPrefix << ": " << pMessage << "\n";
-    debugFile.close();
+    std::cerr << "\x1B[31m[Vulkan:" << pLayerPrefix << "]\033[0m " << pMessage << "\n";
     return VK_FALSE;
   }
 
@@ -431,8 +429,8 @@ namespace easyvk {
     vkCheck(vkCreateCommandPool(device.device, &commandPoolCreateInfo, nullptr, &commandPool));
   }
 
-  Buffer::~Buffer() {
-    vkFreeMemory(device.device, memory, nullptr);
+  void Buffer::teardown() {
+		vkFreeMemory(device.device, memory, nullptr);
     vkFreeMemory(device.device, stagingMemory, nullptr);
     vkDestroyBuffer(device.device, buffer, nullptr);
     vkDestroyBuffer(device.device, staging, nullptr);
@@ -610,7 +608,6 @@ namespace easyvk {
     };
     auto descriptorSizes = std::array<VkDescriptorPoolSize, 1>({poolSize});
 
-    printf("1\n");
     // Create a new descriptor pool object
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo {
       VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, 
@@ -634,11 +631,8 @@ namespace easyvk {
 
     writeSets(descriptorSet, buffers, writeDescriptorSets, bufferInfos);
 
-    printf("2\n");
-    printf("wd: %d\n", writeDescriptorSets.size());
     // Update contents of descriptor set object
-    vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), &writeDescriptorSets.front(), 0, {});
-    printf("3\n");
+    vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, {});
 
     uint32_t numSpecConstants = 3 + workgroupMemoryLengths.size();
     VkSpecializationMapEntry specMap[numSpecConstants];
@@ -663,7 +657,7 @@ namespace easyvk {
     VkPipelineShaderStageCreateInfo stageCI {
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
       nullptr,
-      VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT,
+      0,
       VK_SHADER_STAGE_COMPUTE_BIT,
       shaderModule,
       entry_point,
@@ -754,7 +748,6 @@ namespace easyvk {
     VkPipelineExecutableInfoKHR pExecutableInfo = { VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR, nullptr, pipeline, 0 };
     PFN_vkGetPipelineExecutableStatisticsKHR pfnGetPipelineExecutableStatistics = (PFN_vkGetPipelineExecutableStatisticsKHR)vkGetDeviceProcAddr(
       device.device, "vkGetPipelineExecutableStatisticsKHR");
-    printf("5\n");
     uint32_t executableCount = 0;
     // get the count of statistics
     pfnGetPipelineExecutableStatistics(device.device, &pExecutableInfo, &executableCount, nullptr);

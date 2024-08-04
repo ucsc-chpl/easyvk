@@ -23,6 +23,8 @@
 #include <stdarg.h>
 #include <vector>
 #include <map>
+#include <iostream>
+#include <stdlib.h>
 
 #include <vulkan/vulkan.h>
 #ifdef __ANDROID__
@@ -92,7 +94,7 @@ namespace easyvk
   class Buffer {
   public:
     Buffer(Device &device, size_t size);
-    ~Buffer();
+    void teardown();
 
     void copy(Buffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0); // GPU -> GPU 
     void store(void* src, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
@@ -107,7 +109,6 @@ namespace easyvk
     VkBuffer buffer;
     VkBuffer staging;
     size_t size;
-
   };
 
   typedef struct ShaderStatistics {

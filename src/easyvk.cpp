@@ -120,7 +120,9 @@ inline const char *vkResultString(VkResult res) {
 inline void vkAssert(VkResult result, const char *file, int line, bool abort = true) {
   if (result != VK_SUCCESS) {
     evk_log("vkAssert: ERROR %s in '%s', line %d\n", vkResultString(result), file, line);
-    exit(1);
+    if (abort) {
+			exit(1);
+		}
   }
 }
 #define vkCheck(result) { vkAssert((result), __FILE__, __LINE__); }
@@ -427,9 +429,20 @@ namespace easyvk {
       .queueFamilyIndex = device.computeFamilyId
     };
     vkCheck(vkCreateCommandPool(device.device, &commandPoolCreateInfo, nullptr, &commandPool));
+
+		// Allocate command buffer from command pool
+		VkCommandBufferAllocateInfo commandBufferAllocInfo {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.commandPool = commandPool,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1
+		};
+		vkCheck(vkAllocateCommandBuffers(device.device, &commandBufferAllocInfo, &commandBuffer));
   }
 
   void Buffer::teardown() {
+		vkFreeCommandBuffers(device.device, commandPool, 1, &commandBuffer);
+		vkDestroyCommandPool(device.device, commandPool, nullptr);
 		vkFreeMemory(device.device, memory, nullptr);
     vkFreeMemory(device.device, stagingMemory, nullptr);
     vkDestroyBuffer(device.device, buffer, nullptr);
@@ -437,16 +450,6 @@ namespace easyvk {
   }
 
   void Buffer::_copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset, size_t dstOffset) {
-    // Allocate command buffer from command pool
-    VkCommandBufferAllocateInfo allocInfo {
-      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-      .commandPool = commandPool,
-      .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-      .commandBufferCount = 1
-    };
-    VkCommandBuffer commandBuffer;
-    vkCheck(vkAllocateCommandBuffers(device.device, &allocInfo, &commandBuffer));
-
     // Begin recording command buffer, record command to copy buffer to buffer, end command buffer record
     VkCommandBufferBeginInfo beginInfo {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -469,6 +472,8 @@ namespace easyvk {
     };
     vkCheck(vkQueueSubmit(device.computeQueue, 1, &submitInfo, VK_NULL_HANDLE));
     vkCheck(vkQueueWaitIdle(device.computeQueue));
+		
+		// Reset command pool (and all buffers in it) for next use
     vkCheck(vkResetCommandPool(device.device, commandPool, 0));
   }
 
@@ -494,7 +499,7 @@ namespace easyvk {
     // Copy staging buffer region to dst region (assumes memory allocated in dst)
     void* stagingPtr;
     vkCheck(vkMapMemory(device.device, stagingMemory, srcOffset, len, 0, &stagingPtr));
-    memcpy((char*)stagingPtr + srcOffset, stagingPtr, len);
+    memcpy((char*)dst + dstOffset, (char*)stagingPtr + srcOffset, len);
     vkUnmapMemory(device.device, stagingMemory);
   }
 

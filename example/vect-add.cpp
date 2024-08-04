@@ -22,7 +22,7 @@
 
 const int size = 1024 * 16;
 
-int main(int argc, char* argv[]) {
+int main() {
 	// Initialize instance.
 	auto instance = easyvk::Instance(true);
 	// Get list of available physical devices.
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
 		c.load(c_host.data(), size * sizeof(double));
 		printf("Checking results...\n");
 		for (int i = 0; i < size; i++) {
-			printf("%d : %d + %d = %d\n", i, a_host[i], b_host[i], c_host[i]);
+			//printf("%d : %d + %f = %f\n", i, a_host[i], b_host[i], c_host[i]);
 			assert(c_host[i] == a_host[i] + b_host[i]);
 		}
 

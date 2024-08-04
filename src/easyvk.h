@@ -104,6 +104,7 @@ namespace easyvk
 
     easyvk::Device &device;
     VkCommandPool commandPool;
+		VkCommandBuffer commandBuffer;
     VkDeviceMemory memory;
     VkDeviceMemory stagingMemory;
     VkBuffer buffer;

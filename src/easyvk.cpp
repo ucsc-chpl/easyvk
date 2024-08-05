@@ -639,7 +639,7 @@ namespace easyvk {
     }
   }
 
-  void Program::initialize(const char *entry_point) {
+  void Program::initialize(const char *entry_point, VkPipelineShaderStageCreateFlags pipelineFlags) {
     descriptorSetLayout = createDescriptorSetLayout(device, buffers.size());
 
     // Define pipeline layout info
@@ -712,7 +712,7 @@ namespace easyvk {
     VkPipelineShaderStageCreateInfo stageCI {
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
       nullptr,
-      0,
+      pipelineFlags,
       VK_SHADER_STAGE_COMPUTE_BIT,
       shaderModule,
       entry_point,

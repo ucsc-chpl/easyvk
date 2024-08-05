@@ -380,7 +380,7 @@ namespace easyvk {
 
 // -------------------------------------------------------------------------------
 
-  Buffer::Buffer(Device &device, size_t sizeBytes, bool deviceLocal) : device(device), size(size), deviceLocal(deviceLocal) {
+  Buffer::Buffer(Device &device, size_t sizeBytes, bool deviceLocal) : device(device), size(sizeBytes), deviceLocal(deviceLocal) {
     // Create VkBuffer    
     VkMemoryPropertyFlags memProp = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     if (deviceLocal) {

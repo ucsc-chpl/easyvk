@@ -380,47 +380,18 @@ namespace easyvk {
 
 // -------------------------------------------------------------------------------
 
-  Buffer::Buffer(Device &device, size_t size) : device(device), size(size) {
-    // Create device-local buffer
-    VkBufferCreateInfo bufferInfo {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .size = size,
-      .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-      .sharingMode = VK_SHARING_MODE_EXCLUSIVE
-    };
-    vkCheck(vkCreateBuffer(device.device, &bufferInfo, nullptr, &buffer));
-
-    // Create staging buffer
-    VkBufferCreateInfo stagingBufferInfo {
-      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-      .size = size,
-      .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      .sharingMode = VK_SHARING_MODE_EXCLUSIVE
-    };
-    vkCheck(vkCreateBuffer(device.device, &stagingBufferInfo, nullptr, &staging));
-
-    // Allocate device memory to device-local buffer
-    VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(device.device, buffer, &memReqs);
-    VkMemoryAllocateInfo allocInfo {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .allocationSize = memReqs.size,
-      .memoryTypeIndex = device.selectMemory(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-    };
-    vkCheck(vkAllocateMemory(device.device, &allocInfo, nullptr, &memory));
-    vkCheck(vkBindBufferMemory(device.device, buffer, memory, 0));
-
-    // Allocate device memory to staging buffer
-    VkMemoryRequirements stagingMemReqs;
-    vkGetBufferMemoryRequirements(device.device, staging, &stagingMemReqs);
-    VkMemoryAllocateInfo stagingAllocInfo {
-      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-      .allocationSize = memReqs.size,
-      .memoryTypeIndex = device.selectMemory(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-    };
-    vkCheck(vkAllocateMemory(device.device, &stagingAllocInfo, nullptr, &stagingMemory));
-    vkCheck(vkBindBufferMemory(device.device, staging, stagingMemory, 0));
-
+  Buffer::Buffer(Device &device, size_t sizeBytes, bool deviceLocal) : device(device), size(size), deviceLocal(deviceLocal) {
+    // Create VkBuffer    
+    VkMemoryPropertyFlags memProp = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    if (deviceLocal) {
+      memProp = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;  
+    }  
+    VkBufferUsageFlags usage = 
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT 
+      | VK_BUFFER_USAGE_TRANSFER_DST_BIT 
+      | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    _createVkBuffer(&buffer, &memory, sizeBytes, usage, memProp);
+   
     // Create command pool for copy commands
     VkCommandPoolCreateInfo commandPoolCreateInfo {
       .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -440,13 +411,33 @@ namespace easyvk {
 		vkCheck(vkAllocateCommandBuffers(device.device, &commandBufferAllocInfo, &commandBuffer));
   }
 
+  void Buffer::_createVkBuffer(VkBuffer* buf, VkDeviceMemory* mem, size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props) {
+    // Creating VkBuffer    
+    VkBufferCreateInfo bufferInfo {
+      .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+      .size = size,
+      .usage = usage,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+    };
+    vkCheck(vkCreateBuffer(device.device, &bufferInfo, nullptr, buf));
+    
+    // Allocating memory to it
+    VkMemoryRequirements memReqs;
+    vkGetBufferMemoryRequirements(device.device, *buf, &memReqs);
+    VkMemoryAllocateInfo allocInfo {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize = memReqs.size,
+      .memoryTypeIndex = device.selectMemory(memReqs.memoryTypeBits, props)
+    }; 
+    vkCheck(vkAllocateMemory(device.device, &allocInfo, nullptr, mem));
+    vkCheck(vkBindBufferMemory(device.device, *buf, *mem, 0));
+  }
+
   void Buffer::teardown() {
 		vkFreeCommandBuffers(device.device, commandPool, 1, &commandBuffer);
 		vkDestroyCommandPool(device.device, commandPool, nullptr);
 		vkFreeMemory(device.device, memory, nullptr);
-    vkFreeMemory(device.device, stagingMemory, nullptr);
     vkDestroyBuffer(device.device, buffer, nullptr);
-    vkDestroyBuffer(device.device, staging, nullptr);
   }
 
   void Buffer::_copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset, size_t dstOffset) {
@@ -482,54 +473,85 @@ namespace easyvk {
   }
 
   void Buffer::store(void* src, size_t len, size_t srcOffset, size_t dstOffset) {
-    // Copy src region to staging buffer region
-    void* stagingPtr;
-    vkCheck(vkMapMemory(device.device, stagingMemory, dstOffset, len, 0, &stagingPtr));
-    memcpy(stagingPtr, (char*)src + srcOffset, len);
-    vkUnmapMemory(device.device, stagingMemory);
+    if (deviceLocal) {
+      // Allocate staging buffer of copy size
+      VkBuffer staging;
+      VkDeviceMemory stagingMemory;
+      _createVkBuffer(&staging, &stagingMemory, len, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT); 
 
-    // Copy staging buffer region to device local buffer region
-    _copy(staging, buffer, len, dstOffset, dstOffset);
+      // Copy src region to staging buffer region
+      void* stagingPtr;
+      vkCheck(vkMapMemory(device.device, stagingMemory, 0, len, 0, &stagingPtr));
+      memcpy(stagingPtr, (char*)src + srcOffset, len);
+      vkUnmapMemory(device.device, stagingMemory);
+      
+      // Copy staging buffer region to device local buffer region
+      _copy(staging, buffer, len, 0, dstOffset);
+      
+      // Free staging buffer
+      vkFreeMemory(device.device, stagingMemory, nullptr);
+      vkDestroyBuffer(device.device, staging, nullptr);
+    } else {
+      // Map host visible buffer, copy memory, unmap
+      void* bufferPtr;
+      vkCheck(vkMapMemory(device.device, memory, dstOffset, len, 0, &bufferPtr));
+      memcpy(bufferPtr, (char*)src + srcOffset, len); 
+      vkUnmapMemory(device.device, memory);
+    }
   }
 
   void Buffer::load(void* dst, size_t len, size_t srcOffset, size_t dstOffset) {
-    // Copy device local buffer region to staging buffer region
-    _copy(buffer, staging, len, srcOffset, srcOffset);
+    if (deviceLocal) {
+      VkBuffer staging;
+      VkDeviceMemory stagingMemory;
+      _createVkBuffer(&staging, &stagingMemory, len, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);      
 
-    // Copy staging buffer region to dst region (assumes memory allocated in dst)
-    void* stagingPtr;
-    vkCheck(vkMapMemory(device.device, stagingMemory, srcOffset, len, 0, &stagingPtr));
-    memcpy((char*)dst + dstOffset, (char*)stagingPtr + srcOffset, len);
-    vkUnmapMemory(device.device, stagingMemory);
+      // Copy device local buffer region to staging buffer region
+      _copy(buffer, staging, len, srcOffset, 0);
+      
+      // Copy staging buffer region to dst region (assumes memory allocated in dst)
+      void* stagingPtr;
+      vkCheck(vkMapMemory(device.device, stagingMemory, 0, len, 0, &stagingPtr));
+      memcpy((char*)dst + dstOffset, (char*)stagingPtr, len);
+      vkUnmapMemory(device.device, stagingMemory);
+      
+      // Free staging buffer
+      vkFreeMemory(device.device, stagingMemory, nullptr);
+      vkDestroyBuffer(device.device, staging, nullptr);
+    } else {
+      // Map host visible buffer, copy memory, unmap
+      void* bufferPtr;
+      vkCheck(vkMapMemory(device.device, memory, srcOffset, len, 0, &bufferPtr));
+      memcpy((char*)dst + dstOffset, (char*)bufferPtr, len); 
+    }
   }
 
-	void Buffer::fill(uint32_t word, size_t offset) {
-		// Begin command buffer, encode commands to fill buffer and staging buffer with word
-		VkCommandBufferBeginInfo beginInfo {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-		};
-		vkCheck(vkBeginCommandBuffer(commandBuffer, &beginInfo));
-		vkCmdFillBuffer(commandBuffer, buffer, offset, size, word);
-		vkCmdFillBuffer(commandBuffer, staging, offset, size, word);
-		vkCheck(vkEndCommandBuffer(commandBuffer));
+  void Buffer::fill(uint32_t word, size_t offset) {
+    // Begin command buffer, encode commands to fill buffer and staging buffer with word
+    VkCommandBufferBeginInfo beginInfo {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+    vkCheck(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+    vkCmdFillBuffer(commandBuffer, buffer, offset, size, word);
+    vkCheck(vkEndCommandBuffer(commandBuffer));
 
-		// Submit command buffer to queue, wait for completion
-		VkSubmitInfo submitInfo {
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			.commandBufferCount = 1,
-			.pCommandBuffers = &commandBuffer
-		};	
-		vkCheck(vkQueueSubmit(device.computeQueue, 1, &submitInfo, VK_NULL_HANDLE));
-		vkCheck(vkQueueWaitIdle(device.computeQueue));
+    // Submit command buffer to queue, wait for completion
+    VkSubmitInfo submitInfo {
+      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .commandBufferCount = 1,
+      .pCommandBuffers = &commandBuffer
+    };	
+    vkCheck(vkQueueSubmit(device.computeQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    vkCheck(vkQueueWaitIdle(device.computeQueue));
 
-		// Reset command pool (and all buffers in it) for next use
-		vkCheck(vkResetCommandPool(device.device, commandPool, 0));
-	}
+    // Reset command pool (and all buffers in it) for next use
+    vkCheck(vkResetCommandPool(device.device, commandPool, 0));
+  }
 
-	void Buffer::clear() {
-		fill(0);	
-	}
+  void Buffer::clear() {
+    fill(0);	
+  }
 
   // -------------------------------------------------------------------------------
 
@@ -617,7 +639,7 @@ namespace easyvk {
     }
   }
 
-  void Program::initialize(const char *entry_point) {
+  void Program::initialize(const char *entry_point, VkPipelineShaderStageCreateFlags pipelineFlags) {
     descriptorSetLayout = createDescriptorSetLayout(device, buffers.size());
 
     // Define pipeline layout info
@@ -690,7 +712,7 @@ namespace easyvk {
     VkPipelineShaderStageCreateInfo stageCI {
       VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
       nullptr,
-      0,
+      pipelineFlags,
       VK_SHADER_STAGE_COMPUTE_BIT,
       shaderModule,
       entry_point,

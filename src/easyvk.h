@@ -70,30 +70,9 @@ namespace easyvk
     VkPhysicalDevice physicalDevice;
   };
 
-  /**
-   * @brief Represents a buffer for storing data elements in device memory.
-   *
-   * The Buffer class provides a convenient interface for allocating and interacting with
-   * VKBuffers tied to device memory. The buffer is implicitly un-typed and the load/store
-   * methods provide templated views to the underlying buffer.
-   *
-   * NOTE: The correctness of this implementation relies on whether the OpenCL data types are
-   * interepreted and represented the same way as on the host device. For example, you
-   * define a buffer of 256 longs like this:
-   *
-   *     auto myBuf = Buffer(device, 256, sizeof(long));
-   *
-   * And you would use myBuf.store<long>(...) and myBuf.load<long>(...) to write/read to the
-   * buffer from the host. However, if your host device has a specification for that what a
-   * long is that doesn't match OpenCL's spec, then you are going to get unexpected behavior.
-   * I think the OpenCL spec should match the spec for most modern devices, but you should
-   * verify to be safe. See http://man.opencl.org/scalarDataTypes.html for how OpenCL
-   * specifies it's types.
-   */
-
   class Buffer {
   public:
-    Buffer(Device &device, size_t size);
+    Buffer(Device &device, size_t sizeBytes, bool deviceLocal = false);
     void teardown();
     void copy(Buffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);  
     void store(void* src, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
@@ -101,15 +80,15 @@ namespace easyvk
     void clear();
     void fill(uint32_t word, size_t offset = 0); 
     void _copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
+    void _createVkBuffer(VkBuffer* buf, VkDeviceMemory* mem, size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props);
 
     easyvk::Device &device;
     VkCommandPool commandPool;
-		VkCommandBuffer commandBuffer;
+    VkCommandBuffer commandBuffer;
     VkDeviceMemory memory;
-    VkDeviceMemory stagingMemory;
     VkBuffer buffer;
-    VkBuffer staging;
     size_t size;
+    bool deviceLocal;
   };
 
   typedef struct ShaderStatistics {

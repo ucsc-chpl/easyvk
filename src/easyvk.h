@@ -97,7 +97,9 @@ namespace easyvk
     void teardown();
     void copy(Buffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);  
     void store(void* src, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
-    void load(void* dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0); 
+    void load(void* dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
+		void clear();
+		void fill(uint32_t word, size_t offset = 0); 
     void _copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
 
     easyvk::Device &device;

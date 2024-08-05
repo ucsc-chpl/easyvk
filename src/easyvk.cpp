@@ -503,6 +503,34 @@ namespace easyvk {
     vkUnmapMemory(device.device, stagingMemory);
   }
 
+	void Buffer::fill(uint32_t word, size_t offset) {
+		// Begin command buffer, encode commands to fill buffer and staging buffer with word
+		VkCommandBufferBeginInfo beginInfo {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+		};
+		vkCheck(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+		vkCmdFillBuffer(commandBuffer, buffer, offset, size, word);
+		vkCmdFillBuffer(commandBuffer, staging, offset, size, word);
+		vkCheck(vkEndCommandBuffer(commandBuffer));
+
+		// Submit command buffer to queue, wait for completion
+		VkSubmitInfo submitInfo {
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &commandBuffer
+		};	
+		vkCheck(vkQueueSubmit(device.computeQueue, 1, &submitInfo, VK_NULL_HANDLE));
+		vkCheck(vkQueueWaitIdle(device.computeQueue));
+
+		// Reset command pool (and all buffers in it) for next use
+		vkCheck(vkResetCommandPool(device.device, commandPool, 0));
+	}
+
+	void Buffer::clear() {
+		fill(0);	
+	}
+
   // -------------------------------------------------------------------------------
 
   // Read spv shader files

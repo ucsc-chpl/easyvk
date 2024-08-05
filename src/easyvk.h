@@ -19,9 +19,12 @@
 #include <fstream>
 #include <set>
 #include <string>
+#include <cstring>
 #include <stdarg.h>
 #include <vector>
 #include <map>
+#include <iostream>
+#include <stdlib.h>
 
 #include <vulkan/vulkan.h>
 #ifdef __ANDROID__
@@ -55,14 +58,13 @@ namespace easyvk
     Device(Instance &_instance, VkPhysicalDevice _physicalDevice);
     VkDevice device;
     VkPhysicalDeviceProperties properties;
-    uint32_t selectMemory(VkBuffer buffer, VkMemoryPropertyFlags flags);
+    uint32_t selectMemory(uint32_t memoryTypeBits, VkMemoryPropertyFlags flags);
     uint32_t computeFamilyId = uint32_t(-1);
     uint32_t subgroupSize();
     VkQueue computeQueue;
     // AMD shader info extension gives more register info than the portable stats extension
     bool supportsAMDShaderStats;
     void teardown();
-
   private:
     Instance &instance;
     VkPhysicalDevice physicalDevice;
@@ -89,78 +91,23 @@ namespace easyvk
    * specifies it's types.
    */
 
-  typedef struct BufferParams
-  {
-    size_t numElements;
-    size_t elementSize;
-    bool deviceAddr;
-    bool deviceLocal;
-  } BufferParams;
-
-  class Buffer
-  {
+  class Buffer {
   public:
-    Buffer(Device &device, size_t numElements, size_t elementSize);
-    Buffer(Device &device, BufferParams params);
-
-    VkBuffer buffer;
-
-    // The below load and store implementations use a type template which dictates
-    // how the underlying buffer should be interpreted. If the memory is device local,
-    // does nothing.
-    template <typename T>
-    void store(size_t i, T value)
-    {
-      if (!deviceLocal)
-        *(reinterpret_cast<T *>(data) + i) = value;
-    }
-
-    // If the memory is device local, return 0 representation.
-    template <typename T>
-    T load(size_t i)
-    {
-      if (deviceLocal)
-      {
-        return 0;
-      }
-      return *(reinterpret_cast<T *>(data) + i);
-    }
-
-    /**
-     * Zero out the memory associated with the buffer, if the memory is not device local.
-     */
-    void clear()
-    {
-      if (!deviceLocal)
-      {
-        auto buf = static_cast<char *>(data);
-        for (size_t i = 0; i < _numElements * _elementSize; i++)
-        {
-          buf[i] = 0;
-        }
-      }
-    }
-
-    /**
-     * Returns the total size of the underlying buffer (in bytes).
-     */
-    size_t size() const
-    {
-      return _numElements * _elementSize;
-    }
-
-    /** Returns the device address of this buffer. */
-    uint64_t device_addr();
-
+    Buffer(Device &device, size_t size);
     void teardown();
+    void copy(Buffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);  
+    void store(void* src, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
+    void load(void* dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0); 
+    void _copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
 
-  private:
     easyvk::Device &device;
+    VkCommandPool commandPool;
+		VkCommandBuffer commandBuffer;
     VkDeviceMemory memory;
-    bool deviceLocal; // specifies whether the memory can be mapped on the host
-    size_t _numElements;
-    size_t _elementSize;
-    void *data;
+    VkDeviceMemory stagingMemory;
+    VkBuffer buffer;
+    VkBuffer staging;
+    size_t size;
   };
 
   typedef struct ShaderStatistics {
@@ -175,8 +122,7 @@ namespace easyvk
    * Buffers should be passed in according to their argument order in the shader.
    * Workgroup memory buffers are indexed from 0.
    */
-  class Program
-  {
+  class Program {
   public:
     Program(Device &_device, const char *filepath, std::vector<easyvk::Buffer> &buffers);
     Program(Device &_device, std::vector<uint32_t> spvCode, std::vector<easyvk::Buffer> &buffers);
@@ -201,11 +147,11 @@ namespace easyvk
     std::vector<VkDescriptorBufferInfo> bufferInfos;
     VkPipelineLayout pipelineLayout;
     VkPipeline pipeline;
+    VkCommandPool commandPool; 
     uint32_t numWorkgroups;
     uint32_t workgroupSize;
     VkFence fence;
     VkCommandBuffer commandBuffer;
-    VkCommandPool commandPool;
     VkQueryPool timestampQueryPool;
   };
 

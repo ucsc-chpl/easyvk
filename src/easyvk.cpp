@@ -690,8 +690,8 @@ namespace easyvk {
     vkUpdateDescriptorSets(device.device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, {});
 
     uint32_t numSpecConstants = 3 + workgroupMemoryLengths.size();
-    VkSpecializationMapEntry specMap[numSpecConstants];
-    uint32_t specMapContent[numSpecConstants];
+    std::vector<VkSpecializationMapEntry> specMap(numSpecConstants);
+    std::vector<uint32_t> specMapContent(numSpecConstants);
 
     // first three specialization constants are the workgroup size
     specMap[0] = VkSpecializationMapEntry{0, 0, sizeof(uint32_t)};
@@ -706,7 +706,7 @@ namespace easyvk {
       specMapContent[3 + key] = value;
     }
 
-    VkSpecializationInfo specInfo{numSpecConstants, specMap, numSpecConstants * sizeof(uint32_t), specMapContent};
+    VkSpecializationInfo specInfo{numSpecConstants, specMap.data(), numSpecConstants * sizeof(uint32_t), specMapContent.data()};
 
     // Define shader stage create info
     VkPipelineShaderStageCreateInfo stageCI {

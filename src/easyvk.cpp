@@ -380,7 +380,7 @@ namespace easyvk {
 
 // -------------------------------------------------------------------------------
 
-  Buffer::Buffer(Device &device, size_t sizeBytes, bool deviceLocal) : device(device), size(sizeBytes), deviceLocal(deviceLocal) {
+  Buffer::Buffer(Device &device, uint64_t sizeBytes, bool deviceLocal) : device(device), size(sizeBytes), deviceLocal(deviceLocal) {
     // Create VkBuffer    
     VkMemoryPropertyFlags memProp = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
     if (deviceLocal) {
@@ -411,7 +411,7 @@ namespace easyvk {
 		vkCheck(vkAllocateCommandBuffers(device.device, &commandBufferAllocInfo, &commandBuffer));
   }
 
-  void Buffer::_createVkBuffer(VkBuffer* buf, VkDeviceMemory* mem, size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props) {
+  void Buffer::_createVkBuffer(VkBuffer* buf, VkDeviceMemory* mem, uint64_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props) {
     // Creating VkBuffer    
     VkBufferCreateInfo bufferInfo {
       .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -440,7 +440,7 @@ namespace easyvk {
     vkDestroyBuffer(device.device, buffer, nullptr);
   }
 
-  void Buffer::_copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset, size_t dstOffset) {
+  void Buffer::_copy(VkBuffer src, VkBuffer dst, uint64_t len, uint64_t srcOffset, uint64_t dstOffset) {
     // Begin recording command buffer, record command to copy buffer to buffer, end command buffer record
     VkCommandBufferBeginInfo beginInfo {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -468,11 +468,11 @@ namespace easyvk {
     vkCheck(vkResetCommandPool(device.device, commandPool, 0));
   }
 
-  void Buffer::copy(Buffer dst, size_t len, size_t srcOffset, size_t dstOffset) {
+  void Buffer::copy(Buffer dst, uint64_t len, uint64_t srcOffset, uint64_t dstOffset) {
     _copy(buffer, dst.buffer, len, srcOffset, dstOffset);
   }
 
-  void Buffer::store(void* src, size_t len, size_t srcOffset, size_t dstOffset) {
+  void Buffer::store(void* src, uint64_t len, uint64_t srcOffset, uint64_t dstOffset) {
     if (deviceLocal) {
       // Allocate staging buffer of copy size
       VkBuffer staging;
@@ -500,7 +500,7 @@ namespace easyvk {
     }
   }
 
-  void Buffer::load(void* dst, size_t len, size_t srcOffset, size_t dstOffset) {
+  void Buffer::load(void* dst, uint64_t len, uint64_t srcOffset, uint64_t dstOffset) {
     if (deviceLocal) {
       VkBuffer staging;
       VkDeviceMemory stagingMemory;
@@ -526,7 +526,7 @@ namespace easyvk {
     }
   }
 
-  void Buffer::fill(uint32_t word, size_t offset) {
+  void Buffer::fill(uint32_t word, uint64_t offset) {
     // Begin command buffer, encode commands to fill buffer and staging buffer with word
     VkCommandBufferBeginInfo beginInfo {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,

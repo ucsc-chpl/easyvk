@@ -72,11 +72,11 @@ namespace easyvk
 
   class Buffer {
   public:
-    Buffer(Device &device, size_t sizeBytes, bool deviceLocal = false);
+    Buffer(Device &device, uint64_t sizeBytes, bool deviceLocal = false);
     void teardown();
-    void copy(Buffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);  
-    void store(void* src, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
-    void load(void* dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
+    void copy(Buffer dst, uint64_t len, uint64_t srcOffset = 0, uint64_t dstOffset = 0);  
+    void store(void* src, uint64_t len, uint64_t srcOffset = 0, uint64_t dstOffset = 0);
+    void load(void* dst, uint64_t len, uint64_t srcOffset = 0, uint64_t dstOffset = 0);
     void clear();
     void fill(uint32_t word, size_t offset = 0); 
     void _copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
@@ -87,7 +87,7 @@ namespace easyvk
     VkCommandBuffer commandBuffer;
     VkDeviceMemory memory;
     VkBuffer buffer;
-    size_t size;
+    uint64_t size;
     bool deviceLocal;
   };
 

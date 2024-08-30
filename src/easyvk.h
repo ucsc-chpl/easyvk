@@ -14,6 +14,9 @@
    limitations under the License.
 */
 
+#ifndef EASYVK_H
+#define EASYVK_H
+
 #include <array>
 #include <cstdint>
 #include <fstream>
@@ -138,3 +141,5 @@ namespace easyvk
 
   const char *vkDeviceType(VkPhysicalDeviceType type);
 }
+
+#endif

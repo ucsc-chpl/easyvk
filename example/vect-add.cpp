@@ -35,13 +35,13 @@ int main() {
 	for (int n = 0; n < numIters; n++) {
 		// Define the buffers to use in the kernel. 
 		auto a = easyvk::Buffer(device, size * sizeof(uint32_t));
-		auto b = easyvk::Buffer(device, size * sizeof(double));
-		auto c = easyvk::Buffer(device, size * sizeof(double));
+		auto b = easyvk::Buffer(device, size * sizeof(float));
+		auto c = easyvk::Buffer(device, size * sizeof(float));
 
 		// Write initial values to the buffers.
 		printf("Setting up host buffers...\n");
 		std::vector<uint32_t> a_host;
-		std::vector<double> b_host;
+		std::vector<float> b_host;
 		for (int i = 0; i < size; i++) {
 			// The buffer provides an untyped view of the memory, so you must specify
 			// the type when using the load/store methods. 
@@ -51,7 +51,7 @@ int main() {
 
 		printf("Loading host buffers to device...\n");
 		a.store(a_host.data(), size * sizeof(uint32_t));
-		b.store(b_host.data(), size * sizeof(double));
+		b.store(b_host.data(), size * sizeof(float));
 
 		printf("Setting up program...\n");
 		std::vector<easyvk::Buffer> bufs = {a, b, c};
@@ -75,8 +75,8 @@ int main() {
 
 		// Check the output.
 		printf("Loading results from device...\n");
-		std::vector<double> c_host(size);
-		c.load(c_host.data(), size * sizeof(double));
+		std::vector<float> c_host(size);
+		c.load(c_host.data(), size * sizeof(float));
 		printf("Checking results...\n");
 		for (int i = 0; i < size; i++) {
 			//printf("%d : %d + %f = %f\n", i, a_host[i], b_host[i], c_host[i]);

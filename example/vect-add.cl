@@ -1,4 +1,4 @@
-__kernel void litmus_test(__global uint *a, __global double *b, __global double *c) {
+__kernel void litmus_test(__global uint *a, __global float *b, __global float *c) {
 	uint id = get_global_id(0);
-	c[id] = (double) a[id] + b[id];
+	c[id] = (float) a[id] + b[id];
 }

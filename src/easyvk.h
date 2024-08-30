@@ -81,9 +81,9 @@ namespace easyvk
     void store(void* src, uint64_t len, uint64_t srcOffset = 0, uint64_t dstOffset = 0);
     void load(void* dst, uint64_t len, uint64_t srcOffset = 0, uint64_t dstOffset = 0);
     void clear();
-    void fill(uint32_t word, size_t offset = 0); 
-    void _copy(VkBuffer src, VkBuffer dst, size_t len, size_t srcOffset = 0, size_t dstOffset = 0);
-    void _createVkBuffer(VkBuffer* buf, VkDeviceMemory* mem, size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props);
+    void fill(uint32_t word, uint64_t offset = 0);
+    void _copy(VkBuffer src, VkBuffer dst, uint64_t len, uint64_t srcOffset = 0, uint64_t dstOffset = 0);
+    void _createVkBuffer(VkBuffer* buf, VkDeviceMemory* mem, uint64_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags props);
 
     easyvk::Device &device;
     VkCommandPool commandPool;

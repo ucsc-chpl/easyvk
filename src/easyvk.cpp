@@ -301,6 +301,10 @@ namespace easyvk {
         enabledExtensions.push_back(VK_AMD_SHADER_INFO_EXTENSION_NAME);
       } else if (strcmp(extension.extensionName, "VK_KHR_pipeline_executable_properties") == 0) {
         enabledExtensions.push_back(VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME);
+      } else if (strcmp(extension.extensionName, "VK_KHR_portability_subset") == 0) {
+        enabledExtensions.push_back("VK_KHR_portability_subset");
+      } else if (strcmp(extension.extensionName, "VK_KHR_shader_non_semantic_info") == 0) {
+        enabledExtensions.push_back("VK_KHR_shader_non_semantic_info");
       }
     }
 

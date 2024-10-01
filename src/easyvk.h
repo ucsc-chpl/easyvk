@@ -29,7 +29,7 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include <volk/volk.h>
+#include <../volk/volk.h>
 #ifdef __ANDROID__
 #include <android/log.h>
 #endif

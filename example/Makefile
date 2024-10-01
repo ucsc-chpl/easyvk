@@ -27,7 +27,7 @@ easyvk:
 	make -C ../
 
 example: build easyvk vect-add.cpp $(SPVS) $(CINITS)
-	$(CXX) $(CXXFLAGS) -I.. -I../src ../volk/volk.c ../build/easyvk.o vect-add.cpp -L$(VULKAN_SDK)/Lib -lvulkan -o build/vect-add.$(RUN_EXT)
+	$(CXX) $(CXXFLAGS) -I../src ../volk/volk.c ../build/easyvk.o vect-add.cpp -L$(VULKAN_SDK)/Lib -lvulkan -o build/vect-add.$(RUN_EXT)
 
 android: build easyvk
 	ndk-build APP_BUILD_SCRIPT=./Android.mk  NDK_PROJECT_PATH=. NDK_APPLICATION_MK=./Application.mk NDK_LIBS_OUT=./build/android/libs NDK_OUT=./build/android/obj

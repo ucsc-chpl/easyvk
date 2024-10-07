@@ -71,7 +71,8 @@ int main() {
 		// Run the kernel.
 		printf("Running program...\n");
 		program.initialize("litmus_test");
-		program.run();
+		float runtime = program.runWithDispatchTiming();
+		printf("Performed vector add in %.5fms\n", runtime / 1000000.0);
 
 		// Check the output.
 		printf("Loading results from device...\n");

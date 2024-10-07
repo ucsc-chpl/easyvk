@@ -34,7 +34,7 @@ void evk_log(const char *fmt, ...) {
 }
 
 // Would use string_VkResult() for this but vk_enum_string_helper.h is no more...
-inline const char *vkResultString(VkResult res) {
+inline const char* vkResultString(VkResult res) {
   switch (res) {
   // 1.0
   case VK_SUCCESS:
@@ -113,6 +113,33 @@ inline const char *vkResultString(VkResult res) {
   default:
     return "UNKNOWN_ERROR";
     break;
+  }
+}
+
+// Returns readable vendor name from vendorID, based on vulkan.gpuinfo.org entries
+inline const char* vkVendorName(uint32_t vid) {
+  switch(vid) {
+    case 0x10DE:
+      return "NVIDIA";
+      break;
+    case 0x1002:
+      return "AMD";
+      break;
+    case 0x8086:
+      return "Intel";
+      break;
+    case 0x106B:
+      return "Apple";
+      break;
+    case 0x13B5:
+      return "ARM";
+      break;
+    case 0x5143:
+      return "Qualcomm";
+      break;
+    default:
+      return "UNKNOWN";
+      break;
   }
 }
 
@@ -375,6 +402,10 @@ namespace easyvk {
 
     vkGetPhysicalDeviceProperties2(physicalDevice, &physicalDeviceProperties);
     return subgroupProperties.subgroupSize;
+  }
+
+  const char* Device::vendorName() {
+    return vkVendorName(properties.vendorID);
   }
 
   void Device::teardown() {
